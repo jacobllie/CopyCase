@@ -1,3 +1,4 @@
+#github-action genshdoc
 #Python script that copies a patient Case in RayStation
 #The plans must be unaproved for this to work
 import os
