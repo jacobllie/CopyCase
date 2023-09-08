@@ -18,7 +18,6 @@ destination = "C:\\temp\\tempexport"
 
 #Getting case parameters and exporting images, beams, doses and plans to temporary folder
 
-
 root = tk.Tk()
 app = GUI(root)
 root.mainloop()
@@ -31,12 +30,6 @@ if get_parameters and not export_files:
     root = tk.Tk()
     app = INFOBOX(root, destination)
     root.mainloop()
-    #print(app.ok.get())
-    #root.mainloop()
-    #root.mainloop()
-    #root.destroy()
-
-sys.exit()
 
 if delete_files:
 
@@ -46,8 +39,9 @@ if delete_files:
     except:
         pass
 
-    if not os.path.exists(destination):
-        os.makedirs(destination)
+
+if not os.path.exists(destination):
+    os.makedirs(destination)
 
 # Load patient and case data:
 try:
@@ -70,6 +64,11 @@ importfolder = destination
 
 if get_parameters:
     get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
+    if not export_files:
+        if get_parameters and not export_files:
+            root = tk.Tk()
+            app = INFOBOX(root, destination)
+            root.mainloop()
     if set_parameters:
         import_and_set_parameters(initials, importfolder, patient, case, import_files=import_files)
 
@@ -79,7 +78,7 @@ else:
         import_and_set_parameters(initials, importfolder, patient, case, import_files=import_files)
 
 # Files should not be deleted if we do not set parameters
-if set_parameters:
+if import_files and delete_files:
     #deleting existing files and folders in tempexport
     try:
         delete_files_and_folders(destination)
