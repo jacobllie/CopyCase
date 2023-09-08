@@ -26,11 +26,6 @@ get_parameters , export_files , import_files, set_parameters, delete_files = app
 
 print(delete_files, get_parameters, export_files, import_files, set_parameters)
 
-if get_parameters and not export_files:
-    root = tk.Tk()
-    app = INFOBOX(root, destination)
-    root.mainloop()
-
 if delete_files:
 
     #deleting existing files and folders in tempexport
@@ -86,5 +81,5 @@ if import_files and delete_files:
         pass
 
 
-# TODO: Sørg for at det er mulig å kopiere et allerede kopiert case.
-#   Det går ikke dessverre
+# TODO: Har prøvd å kjøre skriptet på EMIN_1075 i research og det kræsjer pga. RaySearch.RayStation.Base.Exceptions.LogicalException: Invalid registration ??
+#  Finn ut hva som er en invalid registration og hvorfor

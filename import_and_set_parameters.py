@@ -1,5 +1,7 @@
 #Importing python modules
 import os
+import sys
+
 from connect import *
 import json
 import System.Drawing
@@ -9,7 +11,13 @@ import datetime
 from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
 
-def import_and_set_parameters(initials, importfolder, patient, case):
+def extract_number(s):
+    try:
+        return int(s.split()[-1])
+    except ValueError:
+        return float('inf')  # Put non-numeric values at the end
+
+def import_and_set_parameters(initials, importfolder, patient, case, import_files=True):
     """
     Function that imports examinations, plans and doses to new case and sets isodose colortable, examination names,
     optimization objectives, clinical goals and plan CT names to generate a copied case.
@@ -19,7 +27,9 @@ def import_and_set_parameters(initials, importfolder, patient, case):
     :param case: RayStation PyScriptObject
     :return: None
     """
-    Import(initials, importfolder, patient, case)
+
+    if import_files:
+        Import(importfolder, patient)
 
     """
     If there is a Case 1 and Case 3, the new case will be called Case 2, so it is not correct to assume that case 3 is 
@@ -28,7 +38,10 @@ def import_and_set_parameters(initials, importfolder, patient, case):
     """
 
     patient_db = get_current("PatientDB")
-    patient_info = patient_db.QueryPatientInfo(Filter={"PatientID":patient.PatientID, "LastName":patient.Name.split("^")[-1]})
+    patient_info = patient_db.QueryPatientInfo(Filter={"PatientID":patient.PatientID, "LastName":patient.Name.split("^")[0]})
+
+    assert len(patient_info) > 0, "Patient info is empty"
+
     case_info = patient_db.QueryCaseInfo(PatientInfo=patient_info[0])
 
     datetimes = []
@@ -62,13 +75,54 @@ def import_and_set_parameters(initials, importfolder, patient, case):
     case.CaseSettings.DoseColorMap.ColorTable = new_ColorTable
     case.CaseSettings.DoseColorMap.PresentationType = "Absolute"
 
-    examination_names = json.load(open(os.path.join(importfolder, '{}_StudyNames.json'.format(initials))))
+    isocenter_names = json.load(open(os.path.join(importfolder, '{}_isocenter_names.json'.format(initials))))
 
-    #Updating examination names
+    #Exam names of original case
+    examination_names_imported = json.load(open(os.path.join(importfolder, '{}_StudyNames.json'.format(initials))))
+
     for examination in case.Examinations:
-        examination.Name = examination_names[examination.Series[0].ImportedDicomUID]
+        try:
+            if "lung" in examination.GetProtocolName().lower():
+                lung = True
+                fourDCT = []
+        except:
+            lung = False
+            print("Examination {} does not have protocol name".format(examination))
+        break
+
+    # Updating examination names
+
+    for i,ex in enumerate(case.Examinations):
+        ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID] + "tmp"""
+    for ex in case.Examinations:
+        ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID]
+        data = ex.GetAcquisitionDataFromDicom()
+        print(data)
+        if lung:
+            if "4DCT" in data["SeriesModule"]["SeriesDescription"] and "%" in data["SeriesModule"]["SeriesDescription"]:
+                fourDCT.append(ex.Name)
+            if i == len(case.Examinations)-1:
+                fourDCT = sorted(fourDCT, key=extract_number)
+                print("fourDCT")
+                print(fourDCT)
+    if lung:
+        try:
+            case.CreateExaminationGroup(ExaminationGroupName="4DCT",
+                                        ExaminationGroupType="Collection4dct",
+                                        ExaminationNames=fourDCT)
+        except:
+            pass
 
     for plan in case.TreatmentPlans:
+        # For some reason, if a plan copy is generated within the loop it appears in case.TreatmentPlans in the next iteration
+        # So we skip it if it appears
+        try:
+            if plan.Name == CopyPlanName:
+                continue
+        except:
+            pass
+
+        original_plan_name = plan.Name
         print(plan.Name)
 
         #I dont think we need to do this so ignore for now
@@ -84,11 +138,32 @@ def import_and_set_parameters(initials, importfolder, patient, case):
         #plan_structureset = case.PatientModel.StructureSets[plan_examination.Name]"""
 
 
-        #Changing the name of the beamset back to its original name
-        plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("U", ":")
+        if plan.Review:
+            if plan.Review.ApprovalStatus == "Approved":
+                CopyPlanName = "{} Copy".format(plan.Name)
+                case.CopyPlan(PlanName=plan.Name, NewPlanName=CopyPlanName)
+                plan = case.TreatmentPlans[CopyPlanName]
+        else:
+            # Does not work if there are multiple beamsets
+            for beam in plan.BeamSets[0].Beams:
+                beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
+            # Changing the name of the beamset back to its original name.
+            # This is only the case if an unapproved plan has been imported
+            plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
+            plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+
 
         # Loading file with optimization objectives
-        arguments = json.load(open(os.path.join(importfolder, '{}_{}_objectives.json'.format(initials, plan.Name))))
+        arguments = json.load(
+            open(
+                os.path.join(
+                    importfolder,
+                    "{}_{}_objectives.json".format(
+                        initials, original_plan_name.replace("/", "V").replace(":", "V")
+                    ),
+                )
+            )
+        )
 
         PlanOptimization_new = plan.PlanOptimizations[0]
 
@@ -108,22 +183,37 @@ def import_and_set_parameters(initials, importfolder, patient, case):
 
 
         #Adding clinical goals
-        clinical_goals = json.load(open(os.path.join(importfolder,
-                                                     '{}_{}_ClinicalGoals.json'.format(initials, plan.Name)), 'r'
-                                        )
-                                   )
+        clinical_goals = json.load(
+            open(
+                os.path.join(
+                    importfolder,
+                    "{}_{}_ClinicalGoals.json".format(
+                        initials, original_plan_name.replace("/", "V").replace(":", "V")
+                    ),
+                ),
+                "r",
+            )
+        )
 
         eval_setup = plan.TreatmentCourse.EvaluationSetup
         for i in clinical_goals:
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
             RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[i]
-            eval_setup.AddClinicalGoal(RoiName=RoiName,
-                                       GoalCriteria=Goalriteria,
-                                       GoalType=GoalType,
-                                       AcceptanceLevel=AcceptanceLevel,
-                                       ParameterValue=ParameterValue,
-                                       Priority=Priority
-                                       )
+            try:
+                eval_setup.AddClinicalGoal(RoiName=RoiName,
+                                           GoalCriteria=Goalriteria,
+                                           GoalType=GoalType,
+                                           AcceptanceLevel=AcceptanceLevel,
+                                           ParameterValue=ParameterValue,
+                                           Priority=Priority
+                                           )
+            except:
+                pass
+
+        try:
+            plan.PlanOptimizations[0].EvaluateOptimizationFunctions()
+        except:
+            print("Could not compute objective functions")
     patient.Save()
 
     pass

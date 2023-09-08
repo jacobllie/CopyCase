@@ -24,6 +24,7 @@ def LogWarning(error):
         print("Error occurred. Could not export.")
 
 
+
 # The error was likely due to a blocking warning, and the details should be stated
 # in the execution log.
 # This prints the successful result log in an ordered way.
@@ -59,6 +60,10 @@ def Export(destination, case, beamsets):
     from_examinations = []
     try:
         for i, registration in enumerate(case.Registrations):
+            # Skipping invalid registrations
+            if len(registration.StructureRegistrations) < 1:
+                print("Invalid registration found")
+                continue
             for_registration = registration
             # Frame of reference of the "To" examination.
             to_for = for_registration.ToFrameOfReference
@@ -76,6 +81,7 @@ def Export(destination, case, beamsets):
         one registration pair for each registration. 
         E.g. if CT1 is registered to Legeinntegning, and CT1 is in the same FOR as CT2,CT3 etc. then we will only have to export the 
         registration of CT1 and Legeinntegning, and the others will follow."""
+
 
         # Then we get these pairs
         print(["%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for i in
@@ -96,6 +102,7 @@ def Export(destination, case, beamsets):
         # EffectiveBeamSetDoseForBeamSets resulterer i feilmelding
         # PhysicalBeamDosesForBeamSets: Type = Beam tilsvarer all beam doses (lest av fra eksportvindu)
         # EffectiveBeamDosesForBeamSets resulterer i feilmelding
+
 
         result = case.ScriptableDicomExport(ExportFolderPath=destination,
                                             Examinations=[examination.Name for examination in examinations],
@@ -131,6 +138,7 @@ def Export(destination, case, beamsets):
         LogWarning(error)
 
         print("\nTrying to export again with IgnorePreConditionWarnings=True\n")
+
 
         result = case.ScriptableDicomExport(ExportFolderPath=destination,
                                             Examinations=[examination.Name for examination in examinations],

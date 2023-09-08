@@ -20,12 +20,12 @@ class GUI:
         tk.Label(self.root, text="Select Options:").grid(row=0, columnspan=2, pady=10)
 
         tk.Button(self.root, text="Choose All", command=self.choose_all).grid(row=0, column=3)
-        tk.Checkbutton(self.root, text="Delete Files", variable=self.delete_files).grid(row=1, column=0,                                                                                                sticky="w")
-        tk.Checkbutton(self.root, text="Get Parameters", variable=self.get_parameters_var).grid(row=2, column=0,
+        tk.Checkbutton(self.root, text="Delete Temporary Files", variable=self.delete_files).grid(row=1, column=0,                                                                                                sticky="w")
+        tk.Checkbutton(self.root, text="Get Case Parameters", variable=self.get_parameters_var).grid(row=2, column=0,
                                                                                                 sticky="w")
         tk.Checkbutton(self.root, text="Export", variable=self.export_var).grid(row=3, column=0, sticky="w")
         tk.Checkbutton(self.root, text="Import", variable=self.import_var).grid(row=4, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Set Parameters", variable=self.set_parameters_var).grid(row=5, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Set Case Parameters", variable=self.set_parameters_var).grid(row=5, column=0, sticky="w")
         tk.Button(self.root, text="Submit", command=self.show_selected_options).grid(row=7, columnspan=2, pady=10)
         tk.Button(self.root, text="Close", command=self.close_window).grid(row=7, column=1,columnspan=2, pady=10)
 
@@ -78,35 +78,24 @@ class INFOBOX:
     def __init__(self, root, destination):
         self.root = root
         self.destination = destination
-        self.root.title("Info")
         self.ok = tk.BooleanVar()
         self.create_widgets()
 
+        root.title('Info')
+        root.geometry("350x200+10+10")
     def create_widgets(self):
-        # Set a custom window size and center it on the screen
-        window_width = 310
-        window_height = 100
 
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
+        message = "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n"
 
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-
-        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        message = "Eksporter alle planer, doser, bildeserier etc. manuelt til {}".format(self.destination)
-
-        print(message.split(" "))
-        if len(message.split(" ")) > 6:
-            message_1 = "".join(message.split(" ")[:5])
-            message_2 = "".join(message.split(" ")[6:])
-            tk.Label(self.root, text=message_1).grid(row=0, columnspan=2, pady=10)
-            tk.Label(self.root, text=message_2).grid(row=1, columnspan=2, pady=10)
-
-
-        tk.Label(self.root, text=message).grid(row=0, columnspan=2, pady=10)
-        tk.Button(self.root, text="OK", command=self.confirm).grid(row=2, column=1)
+        btn = tk.Button(self.root, text="OK", command=self.confirm)
+        btn.place(x=150, y=110, height=50, width=70)
+        lbl = tk.Label(self.root, text=message, fg='black', font=("Helvetica", 10))
+        lbl.place(x=10, y=40)
+        lbl = tk.Label(self.root, text=self.destination, fg='black', font=("Helvetica",10,"bold"))
+        lbl = tk.Label(self.root, text=self.destination, fg='black', font=("Helvetica",10,"bold"))
+        lbl.place(x=100, y=60)
+        #tk.Label(self.root, text=message).grid(row=0, columnspan=2, pady=10)
+        #tk.Button(self.root, text="OK", command=self.confirm).grid(row=2, column=1)
         #self.root.bind("<Return>", self.confirm())
         #self.root.bind("<Escape>", self.cancel())
         # Create a button to trigger the message box
