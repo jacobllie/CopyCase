@@ -74,7 +74,7 @@ else:
         import_and_set_parameters(initials, importfolder, patient, case, import_files=import_files)
 
 # Files should not be deleted if we do not set parameters
-if import_files and delete_files:
+if set_parameters and delete_files:
     #deleting existing files and folders in tempexport
     try:
         delete_files_and_folders(destination)
