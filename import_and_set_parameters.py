@@ -61,6 +61,8 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
 
     case = patient.Cases[most_current_case]
 
+    print(case)
+
     ColorTable = json.load(open(os.path.join(importfolder, '{}_ColorTable.json'.format(initials))))
 
     new_ColorTable = {}
@@ -93,11 +95,12 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
     # Updating examination names
 
     for i,ex in enumerate(case.Examinations):
-        ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID] + "tmp"""
+        ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID] + "tmp"
     for ex in case.Examinations:
         ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID]
         data = ex.GetAcquisitionDataFromDicom()
-        print(data)
+        # Need this in case of multiple 4DCT
+        unique_FOR = None
         if lung:
             if "4DCT" in data["SeriesModule"]["SeriesDescription"] and "%" in data["SeriesModule"]["SeriesDescription"]:
                 fourDCT.append(ex.Name)
@@ -105,11 +108,29 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
                 fourDCT = sorted(fourDCT, key=extract_number)
                 print("fourDCT")
                 print(fourDCT)
+                # In case of multiple 4DCTs
+                unique_FOR = []
+                #Access the FOR of the 4DCT CT studies
+                FORs = [case.Examinations[ct].EquipmentInfo.FrameOfReference for ct in fourDCT]
+                # Find unique FOR
+                unique_FOR.extend(FOR for FOR in FORs if FOR not in unique_FOR)
+                print("Unique Frame of reference registrations")
+                print(unique_FOR)
+
     if lung:
         try:
-            case.CreateExaminationGroup(ExaminationGroupName="4DCT",
-                                        ExaminationGroupType="Collection4dct",
-                                        ExaminationNames=fourDCT)
+            if unique_FOR:
+                #Iterating over the unique FOR and making one 4DCT per FOR
+                for i,FOR in enumerate(unique_FOR):
+                    ct_group = [ct for ct in fourDCT if FOR == case.Examinations[ct].EquipmentInfo.FrameOfReference]
+                    case.CreateExaminationGroup(ExaminationGroupName="4DCT {}".format(i),
+                                                ExaminationGroupType="Collection4dct",
+                                                ExaminationNames=ct_group)
+
+            else:
+                case.CreateExaminationGroup(ExaminationGroupName="4DCT",
+                                            ExaminationGroupType="Collection4dct",
+                                            ExaminationNames=fourDCT)
         except:
             pass
 
@@ -117,13 +138,14 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         # For some reason, if a plan copy is generated within the loop it appears in case.TreatmentPlans in the next iteration
         # So we skip it if it appears
         try:
+            print(CopyPlanName)
             if plan.Name == CopyPlanName:
                 continue
         except:
             pass
 
         original_plan_name = plan.Name
-        print(plan.Name)
+        print(original_plan_name)
 
         #I dont think we need to do this so ignore for now
         """Only way to see which CT study a plan is connected to is to go into the scripting object 
@@ -137,12 +159,13 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         #plan_examination = case.Examinations[planning_CTs[plan.Name]]
         #plan_structureset = case.PatientModel.StructureSets[plan_examination.Name]"""
 
-
         if plan.Review:
             if plan.Review.ApprovalStatus == "Approved":
                 CopyPlanName = "{} Copy".format(plan.Name)
                 case.CopyPlan(PlanName=plan.Name, NewPlanName=CopyPlanName)
                 plan = case.TreatmentPlans[CopyPlanName]
+                plan_filename = original_plan_name.replace("/","Y").replace(":","X")
+
         else:
             # Does not work if there are multiple beamsets
             for beam in plan.BeamSets[0].Beams:
@@ -151,7 +174,10 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
             # This is only the case if an unapproved plan has been imported
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
             plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+            plan_filename = plan.Name
 
+        print("Plan Filename")
+        print(plan_filename)
 
         # Loading file with optimization objectives
         arguments = json.load(
@@ -159,11 +185,14 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
                 os.path.join(
                     importfolder,
                     "{}_{}_objectives.json".format(
-                        initials, original_plan_name.replace("/", "V").replace(":", "V")
+                        initials, plan_filename
                     ),
                 )
             )
         )
+
+        print("Plan filename")
+        print(plan_filename)
 
         PlanOptimization_new = plan.PlanOptimizations[0]
 
@@ -188,7 +217,7 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
                 os.path.join(
                     importfolder,
                     "{}_{}_ClinicalGoals.json".format(
-                        initials, original_plan_name.replace("/", "V").replace(":", "V")
+                        initials, plan_filename
                     ),
                 ),
                 "r",
