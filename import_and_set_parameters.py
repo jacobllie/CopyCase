@@ -168,8 +168,11 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
 
         else:
             # Does not work if there are multiple beamsets
-            for beam in plan.BeamSets[0].Beams:
-                beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
+            # Changing name of isocenter if the doses are not considered clinical
+            # NB. Removing consider imported dose as clinical check is not scriptable
+            if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical:
+                for beam in plan.BeamSets[0].Beams:
+                    beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
             # Changing the name of the beamset back to its original name.
             # This is only the case if an unapproved plan has been imported
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
