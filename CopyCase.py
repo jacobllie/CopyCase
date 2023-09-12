@@ -26,8 +26,9 @@ get_parameters , export_files , import_files, set_parameters, delete_files = app
 
 print(delete_files, get_parameters, export_files, import_files, set_parameters)
 
-if delete_files:
-
+# Hvis get_parameters er sant, kan vi slette eksisterende filer, men dersom bare delete files er sant, så
+# Kan det være man mener å slette filene etter import og set_parameters
+if delete_files and get_parameters:
     #deleting existing files and folders in tempexport
     try:
         delete_files_and_folders(destination)
@@ -81,5 +82,4 @@ if import_files and delete_files:
         pass
 
 
-# TODO: Har prøvd å kjøre skriptet på EMIN_1075 i research og det kræsjer pga. RaySearch.RayStation.Base.Exceptions.LogicalException: Invalid registration ??
-#  Finn ut hva som er en invalid registration og hvorfor
+# TODO: Dersom jeg setter delete files True og set parameters True, så blir alle filene i tempexport slettet
