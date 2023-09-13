@@ -82,4 +82,5 @@ if set_parameters and delete_files:
         pass
 
 
-# TODO: Dersom jeg setter delete files True og set parameters True, så blir alle filene i tempexport slettet
+# TODO: Test med pasient som har XRegionkode:0-tot:Frak plan navn, og se om filnavnene blir rett
+#  Sørg for at det ikke er mulig å endre på ting i klinisk case

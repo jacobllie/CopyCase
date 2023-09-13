@@ -107,13 +107,14 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
         #Saving clinical goals
         #Replace / with V in filename
-        with open(os.path.join(destination,'{}_{}_ClinicalGoals.json'.format(initials, plan.Name)), 'w') as f:
+        with open(os.path.join(destination,'{}_{}_ClinicalGoals.json'.format(initials, plan.Name.replace("/","Y"))), 'w') as f:
             json.dump(clinical_goals[plan], f)
 
         #Saving objectives
-        with open(os.path.join(destination,'{}_{}_objectives.json'.format(initials, plan.Name)), 'w') as f:
+        with open(os.path.join(destination,'{}_{}_objectives.json'.format(initials, plan.Name.replace("/","Y"))), 'w') as f:
             json.dump(arguments, f)
 
+    # TODO: Dette burde vel også splittes opp i en fil per plan
     # Saving isocenter names
     with open(os.path.join(destination, '{}_isocenter_names.json'.format(initials)), 'w') as f:
         json.dump(isocenter_names, f)
@@ -127,9 +128,10 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         Export(destination, case, beamsets)
 
     #Endrer navnet tilbake til det opprinnelige
-    for plan in case.TreatmentPlans:
-        plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
-        plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
+    if export_files:
+        for plan in case.TreatmentPlans:
+            plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+            plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
 
     patient.Save()
 

@@ -54,6 +54,8 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
     values in the list rather than the indices. It does the same as numpy.argmax
     """
 
+    # TODO: Finn en måte å asserte at du ikke endrer på klinisk case. Kanskje med en GUI
+
     most_current_idx = max(range(len(datetimes)), key=datetimes.__getitem__)
     most_current_case = case_info[most_current_idx]["Name"]
 
@@ -115,7 +117,6 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
                 # Find unique FOR
                 unique_FOR.extend(FOR for FOR in FORs if FOR not in unique_FOR)
                 print("Unique Frame of reference registrations")
-                print(unique_FOR)
 
     if lung:
         try:
@@ -162,7 +163,7 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         if plan.Review:
             if plan.Review.ApprovalStatus == "Approved":
                 CopyPlanName = "{} Copy".format(plan.Name)
-                case.CopyPlan(PlanName=plan.Name, NewPlanName=CopyPlanName)
+                case.CopyPlan(PlanName=plan.Name, NewPlanName=CopyPlanName, KeepBeamSetNames=True)
                 plan = case.TreatmentPlans[CopyPlanName]
                 plan_filename = original_plan_name.replace("/","Y").replace(":","X")
 
