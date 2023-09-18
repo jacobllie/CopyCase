@@ -6,10 +6,14 @@ from connect import *
 import json
 import System.Drawing
 import datetime
+import tkinter as tk
+from tkinter import ttk
 
 # Importing local files:
 from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
+from GUI import ProgressBar, ConfirmCase
+
 
 def extract_number(s):
     try:
@@ -17,7 +21,8 @@ def extract_number(s):
     except ValueError:
         return float('inf')  # Put non-numeric values at the end
 
-def import_and_set_parameters(initials, importfolder, patient, case, import_files=True):
+
+def import_and_set_parameters(Progress, initials, importfolder, patient, case, import_files=True):
     """
     Function that imports examinations, plans and doses to new case and sets isodose colortable, examination names,
     optimization objectives, clinical goals and plan CT names to generate a copied case.
@@ -27,6 +32,7 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
     :param case: RayStation PyScriptObject
     :return: None
     """
+
 
     if import_files:
         Import(importfolder, patient)
@@ -65,6 +71,10 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
 
     print(case)
 
+    # Pass på at dette funker
+    root = tk.Toplevel()
+    app = ConfirmCase(root,case.CaseName)
+
     ColorTable = json.load(open(os.path.join(importfolder, '{}_ColorTable.json'.format(initials))))
 
     new_ColorTable = {}
@@ -84,7 +94,7 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
     #Exam names of original case
     examination_names_imported = json.load(open(os.path.join(importfolder, '{}_StudyNames.json'.format(initials))))
 
-    for examination in case.Examinations:
+    for i, examination in enumerate(case.Examinations):
         try:
             if "lung" in examination.GetProtocolName().lower():
                 lung = True
@@ -95,10 +105,15 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         break
 
     # Updating examination names
-
+    Progress.update_operation("Updating examination names")
     for i,ex in enumerate(case.Examinations):
+        # Changing prog to account for both adding tmp to exam names, then removing tmp
+        prog = round(((i + 1) / (2*len(case.Examinations))) * 100, 0)
+        Progress.update_progress(prog)
         ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID] + "tmp"
-    for ex in case.Examinations:
+    for i,ex in enumerate(case.Examinations):
+        prog = round(50 + ((i + 1) / (2*len(case.Examinations))) * 100, 0)
+        Progress.update_progress(prog)
         ex.Name = examination_names_imported[ex.Series[0].ImportedDicomUID]
         data = ex.GetAcquisitionDataFromDicom()
         # Need this in case of multiple 4DCT
@@ -135,7 +150,10 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         except:
             pass
 
-    for plan in case.TreatmentPlans:
+    for i,plan in enumerate(case.TreatmentPlans):
+
+        Progress.update_plan("Plan {}/{}".format(i+1, len(case.TreatmentPlans)))
+
         # For some reason, if a plan copy is generated within the loop it appears in case.TreatmentPlans in the next iteration
         # So we skip it if it appears
         try:
@@ -198,10 +216,20 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
         print("Plan filename")
         print(plan_filename)
 
+        # Initializing progress bar
+        """root = tk.Tk()
+        app = ProgressBar(root, iteration=0)
+        root.mainloop()"""
+
         PlanOptimization_new = plan.PlanOptimizations[0]
 
+        Progress.update_operation("Adding Optimization Objectives")
+
         # Adding optimization functions from the original plan for each ROI
-        for arg_dict in arguments:
+        for j, arg_dict in enumerate(arguments):
+            prog = round(((j+1) / len(arguments)) * 100,0)
+            Progress.update_progress(prog)
+
             with CompositeAction('Add Optimization Function'):
                 try:
                     f = PlanOptimization_new.AddOptimizationFunction(FunctionType=arg_dict['FunctionType'],
@@ -214,6 +242,9 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
                 except:
                     print("Could not set objective for ROI {} ".format(arg_dict["RoiName"]))
 
+        # Close progresswindow if we are on the last plan
+        if i == len(case.TreatmentPlans)-1:
+            Progress.quit()
 
         #Adding clinical goals
         clinical_goals = json.load(
@@ -228,10 +259,14 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
             )
         )
 
+        Progress.update_operation("Adding Clinical Goals")
+
         eval_setup = plan.TreatmentCourse.EvaluationSetup
-        for i in clinical_goals:
+        for k, goal in enumerate(clinical_goals):
+            prog = round(((k + 1) / len(arguments)) * 100, 0)
+            Progress.update_progress(prog)
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-            RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[i]
+            RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
             try:
                 eval_setup.AddClinicalGoal(RoiName=RoiName,
                                            GoalCriteria=Goalriteria,
@@ -247,6 +282,7 @@ def import_and_set_parameters(initials, importfolder, patient, case, import_file
             plan.PlanOptimizations[0].EvaluateOptimizationFunctions()
         except:
             print("Could not compute objective functions")
+
     patient.Save()
 
     pass

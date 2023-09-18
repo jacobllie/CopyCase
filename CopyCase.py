@@ -12,7 +12,7 @@ from tkinter import messagebox
 from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import get_parameters_and_export
 from import_and_set_parameters import import_and_set_parameters
-from GUI import GUI, INFOBOX
+from GUI import GUI, INFOBOX, ProgressBar
 
 destination = "C:\\temp\\tempexport"
 
@@ -66,12 +66,22 @@ if get_parameters:
             app = INFOBOX(root, destination)
             root.mainloop()
     if set_parameters:
-        import_and_set_parameters(initials, importfolder, patient, case, import_files=import_files)
+        root = tk.Tk()
+        app = ProgressBar(root)
+        # Import ans set parameters is the work function
+        # We need to call the update progress function inside the work function
+        import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
+        root.mainloop()
 
 else:
     if set_parameters:
-        #Importing images, beams, doses and plans from temporary folder and setting case parameters
-        import_and_set_parameters(initials, importfolder, patient, case, import_files=import_files)
+        #TODO: Skriv hva som gjøres i progressbar
+        root = tk.Tk()
+        app = ProgressBar(root)
+        # Import ans set parameters is the work function
+        # We need to call the update progress function inside the work function
+        import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
+        root.mainloop()
 
 # Files should not be deleted if we do not set parameters
 if set_parameters and delete_files:

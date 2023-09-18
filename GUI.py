@@ -1,6 +1,9 @@
 import tkinter as tk
+from tkinter import ttk
 from tkinter import messagebox
 import sys
+import time
+from tkinter.messagebox import askokcancel, WARNING
 
 
 class GUI:
@@ -111,9 +114,92 @@ class INFOBOX:
         self.root.destroy()
 
 
+class ProgressBar:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Progress")
+        self.root.minsize(width=300, height=100)  # Set a minimum window size
+
+        # Create a progress bar
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
+        self.progress_bar.grid(column=0, row=0, columnspan=3, padx=20, pady=10, sticky="ew")
+
+        # Configure columns to stretch horizontally
+        self.root.columnconfigure(0, weight=1)
+        self.root.columnconfigure(1, weight=1)
+        self.root.columnconfigure(2, weight=1)
+
+        self.plan_label = ttk.Label(self.root, text="")  # Adjust wraplength as needed
+        self.plan_label.grid(column=0, row=1, columnspan=3)
+
+        self.operation_label = ttk.Label(self.root, text="", wraplength=250)  # Adjust wraplength as needed
+        self.operation_label.grid(column=0, row=2, columnspan=3, pady=10)
+
+        # Create a label to display progress percentage
+        self.value_label = ttk.Label(self.root, text="0%")
+        self.value_label.grid(column=0, row=3, columnspan=3, pady=10)
+
+    def update_plan(self, plan_number):
+        self.plan_label.config(text=plan_number)
+
+    def update_operation(self, text):
+        self.operation_label.config(text=text)
+
+    def update_progress(self, iteration):
+        self.value_label.config(text="{}%".format(iteration))
+        self.progress_var.set(iteration)  # Update the progress bar
+        self.root.update_idletasks()  # Update the tkinter window
+
+    def quit(self):
+        self.root.destroy()
+"""class ProgressBar:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Progress")
+
+        # Create a progress bar
+        self.progress_var = tk.DoubleVar()
+        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
+        self.progress_bar.grid(column=0, row=0, columnspan=2, padx=20, pady=20, sticky="ew")
+
+        self.operation_label = ttk.Label(self.root, text="")
+        self.operation_label.grid(column=0, row=1, columnspan=2, pady=10)
+        # Create a label to display progress percentage
+        self.value_label = ttk.Label(self.root, text="0%")
+        self.value_label.grid(column=0, row=2, columnspan=2, pady=10)
+
+    def update_operation(self, text):
+        self.operation_label.config(text=text)
+
+    def update_progress(self, iteration):
+        self.value_label.config(text="{}%".format(iteration))
+        #self.value_label.grid(column=0, row=1, columnspan=2)
+
+        self.progress_var.set(iteration)  # Update the progress bar
+        self.root.update_idletasks()       # Update the tkinter window
 
 
-if __name__ == "__main__":
-    root = tk.Tk()
-    app = GUI(root)
-    root.mainloop()
+    def quit(self):
+        self.root.destroy()"""
+
+
+
+
+class ConfirmCase:
+    def __init__(self, root,case):
+        self.root = root
+        self.case = case
+        self.root.withdraw()
+        self.confirm()
+
+    def confirm(self):
+        answer = askokcancel(title="Confirmation",
+                             message="Are you sure you want to set parameters for case: {}".format(self.case),
+                             icon=WARNING)
+        if answer:
+            pass
+        else:
+            sys.exit(0)
+
+
