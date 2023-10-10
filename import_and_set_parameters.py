@@ -94,6 +94,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
     #Exam names of original case
     examination_names_imported = json.load(open(os.path.join(importfolder, '{}_StudyNames.json'.format(initials))))
 
+    lung = None
     for i, examination in enumerate(case.Examinations):
         try:
             if "lung" in examination.GetProtocolName().lower():
@@ -150,9 +151,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         except:
             pass
 
-    for i,plan in enumerate(case.TreatmentPlans):
-
-        Progress.update_plan("Plan {}/{}".format(i+1, len(case.TreatmentPlans)))
+    for i, plan in enumerate(case.TreatmentPlans):
 
         # For some reason, if a plan copy is generated within the loop it appears in case.TreatmentPlans in the next iteration
         # So we skip it if it appears
@@ -161,6 +160,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
             if plan.Name == CopyPlanName:
                 continue
         except:
+            Progress.update_plan("Plan {}/{}".format(i + 1, len(case.TreatmentPlans)))
             pass
 
         original_plan_name = plan.Name
@@ -242,9 +242,9 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
                 except:
                     print("Could not set objective for ROI {} ".format(arg_dict["RoiName"]))
 
-        # Close progresswindow if we are on the last plan
+        """# Close progresswindow if we are on the last plan
         if i == len(case.TreatmentPlans)-1:
-            Progress.quit()
+            Progress.quit()"""
 
         #Adding clinical goals
         clinical_goals = json.load(
@@ -263,7 +263,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
 
         eval_setup = plan.TreatmentCourse.EvaluationSetup
         for k, goal in enumerate(clinical_goals):
-            prog = round(((k + 1) / len(arguments)) * 100, 0)
+            prog = round(((k + 1) / len(clinical_goals)) * 100, 0)
             Progress.update_progress(prog)
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
             RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
@@ -283,6 +283,8 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         except:
             print("Could not compute objective functions")
 
+    # Quitting progresswindow
+    Progress.quit()
     patient.Save()
 
     pass
