@@ -54,22 +54,54 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
     #Looping trough plans
     for plan in case.TreatmentPlans:
+
         print(plan.Name)
 
         if len(plan.BeamSets) < 1:
             continue
 
+        try:
+            #Skipping imported plans as they cannot be exported to new case
+            if "IMPORTED" in plan.Comments.upper():
+                print("Plan: {} is imported and cannot be exported".format(plan.Name))
+                continue
+            else:
+                pass
+        except:
+            print("No comment in plan")
+
+        # In 2023B Eval the nonexistent objects are None
+        # In 12A the nonexistent objects are Null and cannot be extracted
+        # This approach will work for both
+        try:
+            if plan.TreatmentCourse.TotalDose.DoseValues:
+                pass
+            else:
+                # Dose does not exist and needs to be recalculated
+                plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
+                                             RunEntryValidation=True)
+                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+        except:
+            try:
+                print("No doses")
+                #Dose does not exist and needs to be recalculated
+                plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
+                                             RunEntryValidation=True)
+                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+            except:
+                # Dose could not be recomputed, skip plan
+                print("Could not recompute dose")
+                continue
+
+        isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
+
         #Tror ikke jeg trenger planning CTs egentlig
         #planning_CTs[plan.Name] = plan.BeamSets[0].FractionDose.OnDensity.FromExamination.Name
 
         #Changing name of beamset to be compatible with the ScriptableDicomExport function
-
         if export_files:
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace(":", "X")
             plan.Name = plan.Name.replace(":", "X").replace("/","Y")
-
-
-        isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
 
         PlanOptimization = plan.PlanOptimizations[0]
         arguments = []

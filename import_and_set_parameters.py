@@ -186,17 +186,22 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
                 plan_filename = original_plan_name.replace("/","Y").replace(":","X")
 
         else:
+            # Need this to extract the correct file
+            plan_filename = plan.Name
+            print(plan_filename)
+
+            # Changing the name of the beamset back to its original name.
+            # This is only the case if an unapproved plan has been imported
+            plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
+            plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+
             # Does not work if there are multiple beamsets
             # Changing name of isocenter if the doses are not considered clinical
             # NB. Removing consider imported dose as clinical check is not scriptable
             if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical:
                 for beam in plan.BeamSets[0].Beams:
                     beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
-            # Changing the name of the beamset back to its original name.
-            # This is only the case if an unapproved plan has been imported
-            plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
-            plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
-            plan_filename = plan.Name
+
 
         print("Plan Filename")
         print(plan_filename)
