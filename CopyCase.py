@@ -14,82 +14,85 @@ from get_parameters_and_export import get_parameters_and_export
 from import_and_set_parameters import import_and_set_parameters
 from GUI import GUI, INFOBOX, ProgressBar
 
-destination = "C:\\temp\\tempexport"
 
-#Getting case parameters and exporting images, beams, doses and plans to temporary folder
+def copycase():
 
-root = tk.Tk()
-app = GUI(root)
-root.mainloop()
+    destination = "C:\\temp\\tempexport"
 
-get_parameters , export_files , import_files, set_parameters, delete_files = app.options_list
+    #Getting case parameters and exporting images, beams, doses and plans to temporary folder
 
-print(delete_files, get_parameters, export_files, import_files, set_parameters)
+    root = tk.Tk()
+    app = GUI(root)
+    root.mainloop()
 
-# Hvis get_parameters er sant, kan vi slette eksisterende filer, men dersom bare delete files er sant, så
-# Kan det være man mener å slette filene etter import og set_parameters
-if delete_files and get_parameters:
-    #deleting existing files and folders in tempexport
+    get_parameters , export_files , import_files, set_parameters, delete_files = app.options_list
+
+    print(delete_files, get_parameters, export_files, import_files, set_parameters)
+
+    # Hvis get_parameters er sant, kan vi slette eksisterende filer, men dersom bare delete files er sant, så
+    # Kan det være man mener å slette filene etter import og set_parameters
+    if delete_files and get_parameters:
+        #deleting existing files and folders in tempexport
+        try:
+            delete_files_and_folders(destination)
+        except:
+            pass
+
+
+    if not os.path.exists(destination):
+        os.makedirs(destination)
+
+    # Load patient and case data:
     try:
-        delete_files_and_folders(destination)
-    except:
-        pass
+        patient = get_current("Patient")
+    except SystemError:
+        raise IOError("No patient loaded.")
+    try:
+        case = get_current("Case")
+    except SystemError:
+        raise IOError("No case loaded.")
 
+    patient_name = patient.Name.split("^")
 
-if not os.path.exists(destination):
-    os.makedirs(destination)
+    #Initials used in filenames
+    initials = ""
+    for name in patient_name:
+        initials += name[0]
 
-# Load patient and case data:
-try:
-    patient = get_current("Patient")
-except SystemError:
-    raise IOError("No patient loaded.")
-try:
-    case = get_current("Case")
-except SystemError:
-    raise IOError("No case loaded.")
+    importfolder = destination
 
-patient_name = patient.Name.split("^")
-
-#Initials used in filenames
-initials = ""
-for name in patient_name:
-    initials += name[0]
-
-importfolder = destination
-
-if get_parameters:
-    get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
-    if not export_files:
-        if get_parameters and not export_files:
+    if get_parameters:
+        get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
+        if not export_files:
+            if get_parameters and not export_files:
+                root = tk.Tk()
+                app = INFOBOX(root, destination)
+                root.mainloop()
+        if set_parameters:
             root = tk.Tk()
-            app = INFOBOX(root, destination)
+            app = ProgressBar(root)
+            # Import ans set parameters is the work function
+            # We need to call the update progress function inside the work function
+            import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
             root.mainloop()
-    if set_parameters:
-        root = tk.Tk()
-        app = ProgressBar(root)
-        # Import ans set parameters is the work function
-        # We need to call the update progress function inside the work function
-        import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
-        root.mainloop()
 
-else:
-    if set_parameters:
-        #TODO: Skriv hva som gjøres i progressbar
-        root = tk.Tk()
-        app = ProgressBar(root)
-        # Import ans set parameters is the work function
-        # We need to call the update progress function inside the work function
-        import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
-        root.mainloop()
+    else:
+        if set_parameters:
+            #TODO: Skriv hva som gjøres i progressbar
+            root = tk.Tk()
+            app = ProgressBar(root)
+            # Import ans set parameters is the work function
+            # We need to call the update progress function inside the work function
+            import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
+            root.mainloop()
 
-# Files should not be deleted if we do not set parameters
-if set_parameters and delete_files:
-    #deleting existing files and folders in tempexport
-    try:
-        delete_files_and_folders(destination)
-    except:
-        pass
+    # Files should not be deleted if we do not set parameters
+    if set_parameters and delete_files:
+        #deleting existing files and folders in tempexport
+        try:
+            delete_files_and_folders(destination)
+        except:
+            pass
 
 
 # TODO: Test med pasient som har XRegionkode:0-tot:Frak plan navn, og se om filnavnene blir rett
