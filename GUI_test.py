@@ -1,27 +1,47 @@
-import tkinter as tk
-from tkinter import messagebox
+# This will import all the widgets
+# and modules which are available in
+# tkinter and ttk module
+from tkinter import *
+from tkinter.ttk import *
 
-message_boxes = []  # List to store open message boxes
+# creates a Tk() object
+master = Tk()
 
-def show_message_box():
-    message = "This is a simple message box!"
-    box = messagebox.showinfo("Message Box", message)
-    message_boxes.append(box)
+# sets the geometry of main
+# root window
+master.geometry("200x200")
 
-def close_all_windows():
-    for box in message_boxes:
-        box.destroy()
-    message_boxes.clear()
-    root.destroy()  # Close the main window
 
-# Create the main window
-root = tk.Tk()
-root.title("Message Box Example")
+# function to open a new window
+# on a button click
+def openNewWindow():
+    # Toplevel object which will
+    # be treated as a new window
+    newWindow = Toplevel(master)
 
-# Create a button to trigger the message box
-show_button = tk.Button(root, text="Show Message Box", command=show_message_box)
-show_button.pack(padx=20, pady=10)
+    # sets the title of the
+    # Toplevel widget
+    newWindow.title("New Window")
 
-# Start the tkinter main loop
-root.protocol("WM_DELETE_WINDOW", close_all_windows)
-root.mainloop()
+    # sets the geometry of toplevel
+    newWindow.geometry("200x200")
+
+    # A Label widget to show in toplevel
+    Label(newWindow,
+          text="This is a new window").pack()
+
+
+label = Label(master,
+              text="This is the main window")
+
+label.pack(pady=10)
+
+# a button widget which will open a
+# new window on button click
+btn = Button(master,
+             text="Click to open a new window",
+             command=openNewWindow)
+btn.pack(pady=10)
+
+# mainloop, runs infinitely
+mainloop()

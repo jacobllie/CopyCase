@@ -4,12 +4,13 @@ from tkinter import messagebox
 import sys
 import time
 from tkinter.messagebox import askokcancel, WARNING
+import os
 
 
 class GUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Options GUI")
+        self.root.title("Kopier Case")
 
         self.get_parameters_var = tk.BooleanVar()
         self.export_var = tk.BooleanVar()
@@ -19,21 +20,56 @@ class GUI:
 
         self.create_widgets()
 
-    def create_widgets(self):
-        tk.Label(self.root, text="Select Options:").grid(row=0, columnspan=2, pady=10)
 
-        tk.Button(self.root, text="Choose All", command=self.choose_all).grid(row=0, column=3)
-        tk.Checkbutton(self.root, text="Delete Temporary Files", variable=self.delete_files).grid(row=1, column=0,                                                                                                sticky="w")
-        tk.Checkbutton(self.root, text="Get Case Parameters", variable=self.get_parameters_var).grid(row=2, column=0,
+    def create_widgets(self):
+        """tk.Label(self.root, text="Select Options:").grid(row=0, columnspan=2, pady=5)
+
+        tk.Button(self.root, text="Velg alle", command=self.choose_all).grid(row=0, column=2)
+        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=1, column=0,                                                                                                sticky="w")
+        tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)", variable=self.get_parameters_var).grid(row=2, column=0,
                                                                                                 sticky="w")
-        tk.Checkbutton(self.root, text="Export", variable=self.export_var).grid(row=3, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Import", variable=self.import_var).grid(row=4, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Set Case Parameters", variable=self.set_parameters_var).grid(row=5, column=0, sticky="w")
-        tk.Button(self.root, text="Submit", command=self.show_selected_options).grid(row=7, columnspan=2, pady=10)
-        tk.Button(self.root, text="Close", command=self.close_window).grid(row=7, column=1,columnspan=2, pady=10)
+        tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var).grid(row=3, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=4, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=5, column=0, sticky="w")
+        tk.Button(self.root, text="OK", command=self.show_selected_options).grid(row=7, column=0,columnspan=1, pady=5)
+        tk.Button(self.root, text="Lukk", command=self.close_window).grid(row=7, column=1,columnspan=2, pady=5)"""
+
+        # Add widgets to the frames
+
+        #self.root.columnconfigure(0, weight=0.5)  # First column
+
+        tk.Label(self.root, text="Valg:").grid(row=0, column=0, columnspan=1, pady=1)
+
+        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=7, column=0,
+                                                                                                        sticky="w")
+        tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
+                       variable=self.get_parameters_var).grid(row=3, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var).grid(
+            row=4, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=5,
+                                                                                                             column=0,
+                                                                                                             sticky="w")
+        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=6,
+                                                                                                          column=0,
+                                                                                                          sticky="w")
+        f1 = tk.Frame(self.root)
+        f1.grid(row=1, columnspan=2)
+        alle = tk.Button(f1, text="Velg alle", command=self.choose_all).grid(row=1, column=0,sticky="nsew")
+        hjelp = tk.Button(f1, text="Hjelp",command=self.help).grid(row=1,column = 1,sticky="nsew")
+
+        f2 = tk.Frame(self.root)
+        f2.grid(row=8,columnspan=2)
+        ok = tk.Button(f2, text="OK", command=self.show_selected_options).grid(row=0, column=0,padx=5)
+        lukk = tk.Button(f2, text="Lukk", command=self.close_window).grid(row=0, column=1)
 
         # Bind the Return key event to the show_selected_options method
         self.root.bind("<Return>", self.show_selected_options)
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+
+    def on_close(self):
+        self.root.destroy()
+        sys.exit(0)
 
     def show_selected_options(self, event=None):
         options = {
@@ -71,6 +107,27 @@ class GUI:
         self.set_parameters_var.set(True)
 
         self.show_selected_options()
+
+    def open_file(self):
+        path = 'H:\\Dokumenter\\Github\\CopyCase\\CopyCase Hjelp.docx'
+        os.startfile(path, 'open')
+
+    def help(self):
+        newroot = tk.Toplevel(self.root)
+        newroot.title("hjelp")
+        helptext = "\tNB: \n \tDersom det finnes låste planer i caset, så må disse eksporteres manuelt til tempexport og skriptet må kjøres i to omganger. " \
+                   "For mer info om dette, trykk på «Beskrivelse av manuell eksport».\n\n" \
+                   "\t<Hent Case parametere> henter ulike Case parametere som navn på CT studier, clinical goals og optimization objectives og legger disse i en lokal mappe som heter tempexport.\n\n" \
+                   "\t<Eksporter alle studier, planer og doser> eksporterer alle bildestudier, alle planer og alle doser som DICOM filer til tempexport.\n\n" \
+                   "\t<Importer alle eksporterte filer> importerer alle filene i tempexport til et nytt case.\n\n" \
+                   "\t<Sett Case parametere> setter inn case parameterne som ble hentet i det første steget, " \
+                   "men før dette skjer vil skriptet be om en bekreftelse. Pass på at case-navnet i meldingsboksen avviker fra det opprinnelig caset.\n\n" \
+                   "\t<Slett midlertidige filer> sletter midlertidige filer dersom de eksisterer før nye parametere hentes, og sletter filene etter alle case parametere er satt."
+        label = tk.Label(newroot, text=helptext,anchor="w", justify="left")
+        label.pack(pady=5,padx=5)
+        button = tk.Button(newroot,text="Beskrivelse av manuell eksport", command=self.open_file)
+        button.pack()
+
 
     def close_window(self):
         self.root.destroy()
