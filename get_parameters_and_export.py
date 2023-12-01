@@ -49,6 +49,8 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     clinical_goals = {}
     beamsets = []
     isocenter_names = {}
+    non_imported_plans =  []
+
 
     #planning_CTs = {}
 
@@ -60,12 +62,15 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         if len(plan.BeamSets) < 1:
             continue
 
+        # TODO: Fiks en mer robust måte å sjekke etter importerte planer, f.eks. hvis dose er considered clinical.
+        #  Tror det jeg gjør nå fungerer
         try:
             #Skipping imported plans as they cannot be exported to new case
-            if "IMPORTED" in plan.Comments.upper():
+            if "IMPORTED" in plan.Comments.upper() or plan.BeamSets[0].FractionDose.DoseValues.IsClinical == True:
                 print("Plan: {} is imported and cannot be exported".format(plan.Name))
                 continue
             else:
+                non_imported_plans.append(plan)
                 pass
         except:
             print("No comment in plan")
@@ -75,7 +80,8 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         # This approach will work for both
         try:
             if plan.TreatmentCourse.TotalDose.DoseValues:
-                pass
+                # Removing potential missing dose statistics
+                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
             else:
                 # Dose does not exist and needs to be recalculated
                 plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
@@ -157,14 +163,19 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     patient.Save()
 
     if export_files:
-        Export(destination, case, beamsets)
+        error = Export(destination, case, beamsets)
+        if error:
+            return error
 
     #Endrer navnet tilbake til det opprinnelige
     if export_files:
-        for plan in case.TreatmentPlans:
-            plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+        for plan in non_imported_plans:
+            try:
+                plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
+            except:
+                print("Could not change plan name")
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
 
     patient.Save()
 
-    pass
+    return None

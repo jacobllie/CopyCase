@@ -53,9 +53,9 @@ class GUI:
                                                                                                           column=0,
                                                                                                           sticky="w")
         f1 = tk.Frame(self.root)
-        f1.grid(row=1, columnspan=2)
-        alle = tk.Button(f1, text="Velg alle", command=self.choose_all).grid(row=1, column=0,sticky="nsew")
-        hjelp = tk.Button(f1, text="Hjelp",command=self.help).grid(row=1,column = 1,sticky="nsew")
+        f1.grid(row=1, columnspan=3)
+        alle = tk.Button(f1, text="Velg alle", command=self.choose_all).grid(row=1, column=0, padx=10)
+        hjelp = tk.Button(f1, text="Hjelp",command=self.help).grid(row=1,column=1)
 
         f2 = tk.Frame(self.root)
         f2.grid(row=8,columnspan=2)
@@ -109,14 +109,16 @@ class GUI:
         self.show_selected_options()
 
     def open_file(self):
-        path = 'H:\\Dokumenter\\Github\\CopyCase\\CopyCase Hjelp.docx'
+        #path = 'H:\\Dokumenter\\Github\\CopyCase\\CopyCase Hjelp.docx'
+        path = "I:\\STOLAV - Kreftklinikken\\Avdelinger kreft\\Avdeling for stråleterapi\\Fysikere\\Jacob\\CopyCase\\CopyCase Hjelp.docx"
         os.startfile(path, 'open')
 
     def help(self):
         newroot = tk.Toplevel(self.root)
         newroot.title("hjelp")
         helptext = "\tNB: \n \tDersom det finnes låste planer i caset, så må disse eksporteres manuelt til tempexport og skriptet må kjøres i to omganger. " \
-                   "For mer info om dette, trykk på «Beskrivelse av manuell eksport».\n\n" \
+                   "For mer info om dette, trykk på «Beskrivelse av manuell eksport».\n" \
+                   "\tDersom du ikke ønsker å eksportere alt, så må det også gjøres manuelt.\n\n" \
                    "\t<Hent Case parametere> henter ulike Case parametere som navn på CT studier, clinical goals og optimization objectives og legger disse i en lokal mappe som heter tempexport.\n\n" \
                    "\t<Eksporter alle studier, planer og doser> eksporterer alle bildestudier, alle planer og alle doser som DICOM filer til tempexport.\n\n" \
                    "\t<Importer alle eksporterte filer> importerer alle filene i tempexport til et nytt case.\n\n" \
@@ -240,9 +242,6 @@ class ProgressBar:
     def quit(self):
         self.root.destroy()"""
 
-
-
-
 class ConfirmCase:
     def __init__(self, root,case):
         self.root = root
@@ -258,5 +257,4 @@ class ConfirmCase:
             pass
         else:
             sys.exit(0)
-
 

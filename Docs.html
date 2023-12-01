@@ -1,0 +1,156 @@
+Certainly! Here's the combined documentation for all the Python files you provided, including `CopyCase.py`, `get_parameters_and_export.py`, and `import_and_set_parameters.py`:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Python Project Documentation</title>
+  <style>
+    /* Add your custom CSS styles here */
+  </style>
+</head>
+<body>
+  <h1>Python Project Documentation</h1>
+
+  <h2>CopyCase.py</h2>
+
+  <h3>Overview</h3>
+  <p>
+    The <code>CopyCase.py</code> script is a Python script that copies a patient case in RayStation. It exports images, beams, doses, and plans from an existing case and imports them into a new case with a specified destination folder. The script requires the plans to be unapproved for it to work correctly.
+  </p>
+
+  <h3>Dependencies</h3>
+  <p>
+    This script relies on the following dependencies:
+    <ul>
+      <li><code>connect</code>: This module provides access to RayStation's scripting interface.</li>
+    </ul>
+  </p>
+
+  <h3>Usage</h3>
+  <p>
+    To use the <code>CopyCase.py</code> script, follow these steps:
+    <ol>
+      <li>Ensure that the plans you want to copy are unapproved.</li>
+      <li>Run the script by executing the Python file using the Python interpreter.</li>
+      <li>Specify the destination folder where the copied case will be created by setting the <code>destination</code> variable in the script.</li>
+      <li>Set the <code>delete_folder</code> variable to <code>True</code> if you want to delete existing files and folders in the temporary export folder. Set it to <code>False</code> if you want to keep them.</li>
+      <li>Execute the script and wait for it to complete the copying process.</li>
+    </ol>
+  </p>
+
+  <h3>Code Explanation</h3>
+  <p>
+    The <code>CopyCase.py</code> script can be divided into several sections:
+    <!-- Add detailed code explanation here -->
+  </p>
+
+  <h2>get_parameters_and_export.py</h2>
+
+  <h3>Overview</h3>
+  <p>
+    The <code>get_parameters_and_export</code> function is responsible for extracting RayStation case parameters and exporting examinations, plans, and doses. It saves the extracted parameters as JSON files and exports the necessary data using the DICOM export function.
+  </p>
+
+  <h3>Dependencies</h3>
+  <p>
+    This function relies on the following dependencies:
+    <ul>
+      <li><code>json</code>: This module provides JSON serialization and deserialization.</li>
+      <li><code>os</code>: This module provides a way to interact with the operating system.</li>
+      <li><code>get_and_set_arguments_from_function</code>: This local file contains functions to extract and set arguments from a function.</li>
+      <li><code>dicom_export</code>: This local file contains the DICOM export function.</li>
+    </ul>
+  </p>
+
+  <h3>Usage</h3>
+  <p>
+    To use the <code>get_parameters_and_export</code> function, follow these steps:
+    <ol>
+      <li>Call the function and pass the necessary parameters: <code>initials</code>, <code>destination</code>, <code>patient</code>, and <code>case</code>.</li>
+      <li>The function will extract isodose colortable, imaging scan names, optimization objectives, clinical goals, and plan CT names.</li>
+      <li>It will save the extracted parameters as JSON files in the specified <code>destination</code> folder.</li>
+      <li>Finally, it will export examinations, plans, and doses using the DICOM export function.</li>
+    </ol>
+  </p>
+
+  <h3>Function Signature</h3>
+  <pre>
+    <code>
+      def get_parameters_and_export(initials, destination, patient, case):
+    </code>
+  </pre>
+
+  <h3>Parameters</h3>
+  <ul>
+    <li><code>initials</code> (str): The initials to be used in filenames.</li>
+    <li><code>destination</code> (str): The path of the destination folder where the extracted parameters and exported data will be saved.</li>
+    <li><code>patient</code> (RayStation PyScriptObject): The RayStation object representing the patient.</li>
+    <li><code>case</code> (RayStation PyScriptObject): The RayStation object representing the case.</li>
+  </ul>
+
+  <h3>Return Value</h3>
+  <p>
+    This function does not return any value (<code>None</code>).
+  </p>
+
+  <h2>import_and_set_parameters.py</h2>
+
+  <h3>Overview</h3>
+  <p>
+    The <code>import_and_set_parameters</code> function imports the files exported by the <code>get_parameters_and_export</code> function and sets the case parameters accordingly. It imports examinations, plans, and doses to a new case and sets the isodose colortable, examination names, optimization objectives, clinical goals, and plan CT names to generate a copied case.
+  </p>
+
+  <h3>Dependencies</h3>
+  <p>
+    This function relies on the following dependencies:
+    <ul>
+      <li><code>os</code>: This module provides a way to interact with the operating system.</li>
+      <li><code>connect</code>: This module provides access to RayStation's scripting interface.</li>
+      <li><code>json</code>: This module provides JSON serialization and deserialization.</li>
+      <li><code>System.Drawing</code>: This module provides access to the System.Drawing namespace for color manipulation.</li>
+    </ul>
+  </p>
+
+  <h3>Usage</h3>
+  <p>
+    To use the <code>import_and_set_parameters</code> function, follow these steps:
+    <ol>
+      <li>Call the function and pass the necessary parameters: <code>initials</code>, <code>importfolder</code>, <code>patient</code>, and <code>case</code>.</li>
+      <li>The function will import examinations, plans, and doses from the specified <code>importfolder</code>.</li>
+      <li>It will set the isodose colortable, examination names, optimization objectives, clinical goals, and plan CT names to generate a copied case.</li>
+      <li>Finally, it will save the changes and update the case.</li>
+    </ol>
+  </p>
+
+  <h3>Function Signature</h3>
+  <pre>
+    <code>
+      def import_and_set_parameters(initials, importfolder, patient, case):
+    </code>
+  </pre>
+
+  <h2>Parameters</h2>
+  <ul>
+    <li><code>initials</code> (str): The initials to be used in filenames.</li>
+    <li><code>destination</code> (str): The path of the destination folder where the extracted parameters and exported data will be saved.</li>
+    <li><code>patient</code> (RayStation PyScriptObject): The RayStation object representing the patient.</li>
+    <li><code>case</code> (RayStation PyScriptObject): The RayStation object representing the case.</li>
+  </ul>
+
+  <h2>Return Value</h2>
+  <p>
+    This function does not return any value (<code>None</code>).
+  </p>
+
+  <h2>Example</h2>
+  <pre>
+    <code>
+      # Usage example:
+      # Call the function with the necessary parameters
+      get_parameters_and_export("AB", "C:\\temp\\tempexport", patient, case)
+    </code>
+  </pre>
+
+</body>
+</html>

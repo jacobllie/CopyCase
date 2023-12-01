@@ -62,9 +62,14 @@ def copycase():
     importfolder = destination
 
     if get_parameters:
-        get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
+        error = get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
+        if error:
+            root = tk.Tk()
+            root.withdraw()
+            tk.messagebox.showwarning("Warning", error, icon="warning")
         if not export_files:
             if get_parameters and not export_files:
+                #Message about needing to export manually
                 root = tk.Tk()
                 app = INFOBOX(root, destination)
                 root.mainloop()

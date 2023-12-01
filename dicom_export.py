@@ -3,6 +3,7 @@
 from connect import *
 import json
 import System
+import sys
 
 
 # Example on how to read the JSON error string.
@@ -53,6 +54,7 @@ def Export(destination, case, beamsets):
     :param beamsets:
     :return:
     """
+    #Alle examinations blir eksportert uavhengig om den har en plan som ikke er eksportert.
     examinations = case.Examinations
     print(case.CaseName)
 
@@ -90,6 +92,50 @@ def Export(destination, case, beamsets):
 
     except:
         print("The case does not contain any registrations")
+
+    #checking for invalid geometries in planning CTs
+    #Invalid geometries in non plan CTs will not affect the export, because they are not as strict.
+    #Only plans with doses are exported, so we can use the
+    # case.TreatmentPlans[].BeamSets[].FractionDose.OnDensity.FromExamination.Name, to find the correct examination for the plan that will be exported.
+
+    invalid_geometries = []
+
+    # Finn planer
+    # Finn så struktursettene til disse planene
+    # Finn så de invalide strukturene
+    # Skriv feilmelding
+    for beamset in beamsets:
+        # Beamsetidentifier = "planname:beamsetname"
+        plan = beamset.split(":")[0]
+
+        """Det er ikke nødvendig å identifisere invalide OAR dersom ikke planen skal eksporteres."""
+        print(case.TreatmentPlans[plan].BeamSets[0].FractionDose.OnDensity)
+
+        examination = case.TreatmentPlans[plan].BeamSets[0].FractionDose.OnDensity.FromExamination.Name
+        structureset = case.PatientModel.StructureSets[examination]
+        # Check for invalid volumes in the structureset
+
+        # Ikke tomme volumer som er rød har primary shape og DerivedRoiStatus. IsShapeDirty = True
+
+        # Tomme røde volumer har DerivedRoiExpression og Primary Shape er Null.
+
+        # Overridden volumer har DerivedRoiStatus = Null
+
+        for roi in structureset.RoiGeometries:
+            # Det er bare derived Rois som blir invalid
+            if roi.OfRoi.DerivedRoiExpression:
+                # ikke tomme derived rois
+                if roi.PrimaryShape:
+                    if roi.PrimaryShape.DerivedRoiStatus:
+                        if roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty:
+                            errormessage = "Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination)
+                            print("Ugyldig Roi ({}) funnet i plan-CT: {}".format(roi.OfRoi.Name, examination))
+                            return errormessage
+                # tomme derived rois
+                else:
+                    errormessage = "Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination)
+                    print("Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination))
+                    return errormessage
 
     try:
 
@@ -171,6 +217,7 @@ def Export(destination, case, beamsets):
             LogCompleted(result)
         except:
             print("Unsuccesfull Export")
+
 
     except Exception as e:
         print('Except %s' % e)
