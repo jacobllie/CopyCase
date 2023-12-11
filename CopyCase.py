@@ -17,15 +17,27 @@ from GUI import GUI, INFOBOX, ProgressBar
 
 def copycase():
 
+    get_options_GUI = False
     destination = "C:\\temp\\tempexport"
 
     #Getting case parameters and exporting images, beams, doses and plans to temporary folder
 
+
     root = tk.Tk()
     app = GUI(root)
-    root.mainloop()
 
-    get_parameters , export_files , import_files, set_parameters, delete_files = app.options_list
+
+    if get_options_GUI:
+        root.mainloop()
+        get_parameters, export_files, import_files, set_parameters, delete_files = app.options_list
+
+    else:
+        print("Hello")
+        get_parameters = True
+        export_files = True
+        import_files = True
+        set_parameters = True
+        delete_files = True
 
     print(delete_files, get_parameters, export_files, import_files, set_parameters)
 
