@@ -38,27 +38,31 @@ class GUI:
 
         #self.root.columnconfigure(0, weight=0.5)  # First column
 
-        tk.Label(self.root, text="Valg:").grid(row=0, column=0, columnspan=1, pady=1)
+        tk.Label(self.root, text="NB! Dersom Caset inneholder en Approved plan, så må denne eksporteres manuelt.").\
+            grid(row=0, column=0, columnspan=1, pady=1)
 
-        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=7, column=0,
+
+        tk.Label(self.root, text="Valg:").grid(row=1, column=0, columnspan=1, pady=1)
+
+        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=8, column=0,
                                                                                                         sticky="w")
         tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
-                       variable=self.get_parameters_var).grid(row=3, column=0, sticky="w")
+                       variable=self.get_parameters_var).grid(row=4, column=0, sticky="w")
         tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var).grid(
-            row=4, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=5,
+            row=5, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=6,
                                                                                                              column=0,
                                                                                                              sticky="w")
-        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=6,
+        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=7,
                                                                                                           column=0,
                                                                                                           sticky="w")
         f1 = tk.Frame(self.root)
-        f1.grid(row=1, columnspan=3)
+        f1.grid(row=2, columnspan=3)
         alle = tk.Button(f1, text="Velg alle", command=self.choose_all).grid(row=1, column=0, padx=10)
         hjelp = tk.Button(f1, text="Hjelp",command=self.help).grid(row=1,column=1)
 
         f2 = tk.Frame(self.root)
-        f2.grid(row=8,columnspan=2)
+        f2.grid(row=9,columnspan=2)
         ok = tk.Button(f2, text="OK", command=self.show_selected_options).grid(row=0, column=0,padx=5)
         lukk = tk.Button(f2, text="Lukk", command=self.close_window).grid(row=0, column=1)
 
