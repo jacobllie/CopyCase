@@ -62,18 +62,22 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         if len(plan.BeamSets) < 1:
             continue
 
-        if plan.Review.ApprovalStatus == "Approved":
-            print(
-                "Plan {} er Approved og kan ikke eksporteres med scriptable export og må eksporteres manuelt.".format(
-                    plan.Name))
-            continue
+
+        try:
+            if plan.Review.ApprovalStatus == "Approved":
+                print(
+                    "Plan {} er Approved og kan ikke eksporteres med scriptable export og må eksporteres manuelt.".format(
+                        plan.Name))
+                continue
+        except:
+            pass
 
         # TODO: Fiks en mer robust måte å sjekke etter importerte planer, f.eks. hvis dose er considered clinical.
         #  Tror det jeg gjør nå fungerer
         try:
             #Skipping imported plans as they cannot be exported to new case
             #if "IMPORTED" in plan.Comments.upper() or plan.BeamSets[0].FractionDose.DoseValues.IsClinical == True:
-            if "IMPORTED" in plan.Comments.upper():
+            if "IMPORTED" in plan.BeamSets[0].FractionDose.DoseValues.AlgorithmProperties.DoseAlgorithm.upper():
                 print("Plan: {} is imported and cannot be exported".format(plan.Name))
                 print("Imported funnet i plankommentar. Dersom dosene ikke er importerte, fjern Imported fra plankommentaren.")
                 continue
