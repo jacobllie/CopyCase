@@ -38,7 +38,7 @@ class GUI:
 
         #self.root.columnconfigure(0, weight=0.5)  # First column
 
-        tk.Label(self.root, text="NB! Dersom Caset inneholder en Approved plan, så må denne eksporteres manuelt.").\
+        tk.Label(self.root, text="NB! Dersom Caset inneholder en Approved plan, så må CopyCase kjøres to ganger (trykk hjelp for mer info)").\
             grid(row=0, column=0, columnspan=1, pady=1)
 
 
@@ -122,7 +122,8 @@ class GUI:
         newroot.title("hjelp")
         helptext = "\tNB: \n \tDersom det finnes låste planer i caset, så må disse eksporteres manuelt til tempexport og skriptet må kjøres i to omganger. " \
                    "For mer info om dette, trykk på «Beskrivelse av manuell eksport».\n" \
-                   "\tDersom du ikke ønsker å eksportere alt, så må det også gjøres manuelt.\n\n" \
+                   "\tDersom du ikke ønsker å eksportere alt, så må det også gjøres manuelt.\n\n"\
+                   "\tBeskrivelse av valg:\n"\
                    "\t<Hent Case parametere> henter ulike Case parametere som navn på CT studier, clinical goals og optimization objectives og legger disse i en lokal mappe som heter tempexport.\n\n" \
                    "\t<Eksporter alle studier, planer og doser> eksporterer alle bildestudier, alle planer og alle doser som DICOM filer til tempexport.\n\n" \
                    "\t<Importer alle eksporterte filer> importerer alle filene i tempexport til et nytt case.\n\n" \
@@ -255,7 +256,7 @@ class ConfirmCase:
 
     def confirm(self):
         answer = askokcancel(title="Confirmation",
-                             message="Are you sure you want to set parameters for case: {}".format(self.case),
+                             message="Er du sikker på at du vil sette parametere for case: {}".format(self.case),
                              icon=WARNING)
         if answer:
             pass

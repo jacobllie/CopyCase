@@ -37,6 +37,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
     if import_files:
         Import(importfolder, patient)
 
+
     """
     If there is a Case 1 and Case 3, the new case will be called Case 2, so it is not correct to assume that case 3 is 
     the newest case with the  retrieve the case with the imported plans and doses.
@@ -60,7 +61,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
     values in the list rather than the indices. It does the same as numpy.argmax
     """
 
-    # TODO: Finn en måte å asserte at du ikke endrer på klinisk case. Kanskje med en GUI
+
 
     most_current_idx = max(range(len(datetimes)), key=datetimes.__getitem__)
     most_current_case = case_info[most_current_idx]["Name"]
@@ -68,6 +69,10 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
     print("The most currently modified case is {}".format(most_current_case))
 
     case = patient.Cases[most_current_case]
+
+    # Changing name to documentation, because the original case should be the one to change
+    case.CaseName = "Dokumentasjonscase {}".format(
+        len([c for c in patient.Cases if "Dokumentasjonscase" in c.CaseName]))
 
     print(case)
 
@@ -106,7 +111,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         break
 
     # Updating examination names
-    Progress.update_operation("Updating examination names")
+    Progress.update_operation("Setter korrekt bildenavn")
     for i,ex in enumerate(case.Examinations):
         # Changing prog to account for both adding tmp to exam names, then removing tmp
         prog = round(((i + 1) / (2*len(case.Examinations))) * 100, 0)
@@ -151,20 +156,20 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         except:
             pass
 
+    CopyPlanName = []
     for i, plan in enumerate(case.TreatmentPlans):
 
-        # For some reason, if a plan copy is generated within the loop it appears in case.TreatmentPlans in the next iteration
+        # For some reason, if a plan copy is generated within the loop it appears in case. TreatmentPlans in the next iteration
         # So we skip it if it appears
         try:
-            print(CopyPlanName)
-            if plan.Name == CopyPlanName:
+            if plan.Name in CopyPlanName:
                 continue
         except:
             Progress.update_plan("Plan {}/{}".format(i + 1, len(case.TreatmentPlans)))
             pass
 
         original_plan_name = plan.Name
-        print(original_plan_name)
+        #print(original_plan_name)
 
         #I dont think we need to do this so ignore for now
         """Only way to see which CT study a plan is connected to is to go into the scripting object 
@@ -178,11 +183,14 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         #plan_examination = case.Examinations[planning_CTs[plan.Name]]
         #plan_structureset = case.PatientModel.StructureSets[plan_examination.Name]"""
 
+
+
+        # If plan has copy in
         if plan.Review:
             if plan.Review.ApprovalStatus == "Approved":
-                CopyPlanName = "{} Copy".format(plan.Name)
-                case.CopyPlan(PlanName=plan.Name, NewPlanName=CopyPlanName, KeepBeamSetNames=True)
-                plan = case.TreatmentPlans[CopyPlanName]
+                CopyPlanName.append("{} Copy".format(plan.Name))
+                case.CopyPlan(PlanName=plan.Name, NewPlanName="{} Copy".format(plan.Name), KeepBeamSetNames=True)
+                plan = case.TreatmentPlans["{} Copy".format(plan.Name)]
                 plan_filename = original_plan_name.replace("/","Y").replace(":","X")
 
         else:
@@ -203,8 +211,8 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
                     beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
 
 
-        print("Plan Filename")
-        print(plan_filename)
+        #print("Plan Filename")
+        #print(plan_filename)
 
         # Loading file with optimization objectives
         arguments = json.load(
@@ -218,8 +226,8 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
             )
         )
 
-        print("Plan filename")
-        print(plan_filename)
+        #print("Plan filename")
+        #print(plan_filename)
 
         # Initializing progress bar
         """root = tk.Tk()
@@ -228,7 +236,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
 
         PlanOptimization_new = plan.PlanOptimizations[0]
 
-        Progress.update_operation("Adding Optimization Objectives")
+        Progress.update_operation("Legger til Optimization Objectives")
 
         # Adding optimization functions from the original plan for each ROI
         for j, arg_dict in enumerate(arguments):
@@ -264,7 +272,7 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
             )
         )
 
-        Progress.update_operation("Adding Clinical Goals")
+        Progress.update_operation("Legger til Clinical Goals")
 
         eval_setup = plan.TreatmentCourse.EvaluationSetup
         for k, goal in enumerate(clinical_goals):

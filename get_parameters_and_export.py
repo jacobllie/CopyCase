@@ -55,20 +55,19 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     #planning_CTs = {}
 
     #Looping trough plans
+    approved = None
     for plan in case.TreatmentPlans:
 
         print(plan.Name)
 
         if len(plan.BeamSets) < 1:
             continue
-
-
         try:
             if plan.Review.ApprovalStatus == "Approved":
                 print(
                     "Plan {} er Approved og kan ikke eksporteres med scriptable export og må eksporteres manuelt.".format(
                         plan.Name))
-                continue
+                approved = True
         except:
             pass
 
@@ -90,15 +89,18 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         # In 2023B Eval the nonexistent objects are None
         # In 12A the nonexistent objects are Null and cannot be extracted
         # This approach will work for both
+        dose_computed = None
         try:
             if plan.TreatmentCourse.TotalDose.DoseValues:
                 # Removing potential missing dose statistics
                 plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                dose_computed = True
             else:
                 # Dose does not exist and needs to be recalculated
                 plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
                                              RunEntryValidation=True)
                 plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                dose_computed = True
         except:
             try:
                 print("No doses")
@@ -106,20 +108,19 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
                 plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
                                              RunEntryValidation=True)
                 plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                dose_computed = True
             except:
                 # Dose could not be recomputed, skip plan
                 print("Could not recompute dose")
-                continue
+                dose_computed = False
 
-        isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
+        if not approved:
+            isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
 
-        #Tror ikke jeg trenger planning CTs egentlig
-        #planning_CTs[plan.Name] = plan.BeamSets[0].FractionDose.OnDensity.FromExamination.Name
-
-        #Changing name of beamset to be compatible with the ScriptableDicomExport function
-        if export_files:
-            plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace(":", "X")
-            plan.Name = plan.Name.replace(":", "X").replace("/","Y")
+            #Changing name of beamset to be compatible with the ScriptableDicomExport function
+            if export_files:
+                plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace(":", "X")
+                plan.Name = plan.Name.replace(":", "X").replace("/", "Y")
 
         PlanOptimization = plan.PlanOptimizations[0]
         arguments = []
@@ -174,7 +175,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     #Saving changes before export
     patient.Save()
 
-    if export_files:
+    if export_files and not approved:
         error = Export(destination, case, beamsets)
         if error:
             return error
