@@ -58,6 +58,8 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     approved = None
     for plan in case.TreatmentPlans:
 
+        # TODO: Hent clinical goals og objectives først før man vurderer om planen skal eksporteres
+
         print(plan.Name)
 
         if len(plan.BeamSets) < 1:
@@ -71,8 +73,6 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         except:
             pass
 
-        # TODO: Fiks en mer robust måte å sjekke etter importerte planer, f.eks. hvis dose er considered clinical.
-        #  Tror det jeg gjør nå fungerer
         try:
             #Skipping imported plans as they cannot be exported to new case
             #if "IMPORTED" in plan.Comments.upper() or plan.BeamSets[0].FractionDose.DoseValues.IsClinical == True:

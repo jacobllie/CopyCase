@@ -92,6 +92,7 @@ def copycase():
             import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
             root.mainloop()
 
+    #TODO: Må vi endre hvordan filene slettes?
     # Files should not be deleted if we do not set parameters
     if set_parameters and delete_files:
         #deleting existing files and folders in tempexport
@@ -102,4 +103,3 @@ def copycase():
 
 
 # TODO: Test med pasient som har XRegionkode:0-tot:Frak plan navn, og se om filnavnene blir rett
-#  Sørg for at det ikke er mulig å endre på ting i klinisk case
