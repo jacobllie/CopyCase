@@ -121,6 +121,7 @@ def Export(destination, case, beamsets):
 
         # Overridden volumer har DerivedRoiStatus = Null
 
+        # TODO: Lagre roi expression og status
         for roi in structureset.RoiGeometries:
             # Det er bare derived Rois som blir invalid
             if roi.OfRoi.DerivedRoiExpression:

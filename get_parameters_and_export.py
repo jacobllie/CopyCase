@@ -55,7 +55,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     #Looping trough plans
 
     exported_plans = []
-    for plan in [case.TreatmentPlans["Lunge ve"]]: #case.TreatmentPlans:
+    for plan in case.TreatmentPlans:
 
         """Getting clinical goals and optimization objectives from plan"""
 
