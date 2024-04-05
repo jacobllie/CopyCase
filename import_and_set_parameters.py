@@ -229,10 +229,6 @@ def import_and_set_parameters(Progress, initials, importfolder, patient, case, i
         #print("Plan filename")
         #print(plan_filename)
 
-        # Initializing progress bar
-        """root = tk.Tk()
-        app = ProgressBar(root, iteration=0)
-        root.mainloop()"""
 
         PlanOptimization_new = plan.PlanOptimizations[0]
 

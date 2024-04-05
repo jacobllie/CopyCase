@@ -109,10 +109,9 @@ def Export(destination, case, beamsets):
         plan = beamset.split(":")[0]
 
         """Det er ikke nødvendig å identifisere invalide OAR dersom ikke planen skal eksporteres."""
-        print(case.TreatmentPlans[plan].BeamSets[0].FractionDose.OnDensity)
+        examination = case.TreatmentPlans[plan].BeamSets[0].GetPlanningExamination()
+        structureset = case.PatientModel.StructureSets[examination.Name]
 
-        examination = case.TreatmentPlans[plan].BeamSets[0].FractionDose.OnDensity.FromExamination.Name
-        structureset = case.PatientModel.StructureSets[examination]
         # Check for invalid volumes in the structureset
 
         # Ikke tomme volumer som er rød har primary shape og DerivedRoiStatus. IsShapeDirty = True

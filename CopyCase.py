@@ -94,6 +94,9 @@ def copycase():
 
     #TODO: Må vi endre hvordan filene slettes?
     # Files should not be deleted if we do not set parameters
+
+    # TODO:  If import and set parameters succesfull, then delete files
+
     if set_parameters and delete_files:
         #deleting existing files and folders in tempexport
         try:
