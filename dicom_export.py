@@ -4,7 +4,9 @@ from connect import *
 import json
 import System
 import sys
+import tkinter as tk
 
+from GUI import INFOBOX
 
 # Example on how to read the JSON error string.
 def LogWarning(error):
@@ -85,11 +87,6 @@ def Export(destination, case, beamsets):
         registration of CT1 and Legeinntegning, and the others will follow."""
 
 
-        # Then we get these pairs
-        print(["%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for i in
-               range(len(from_examinations))]
-              )
-
     except:
         print("The case does not contain any registrations")
 
@@ -105,6 +102,7 @@ def Export(destination, case, beamsets):
     # Finn så de invalide strukturene
     # Skriv feilmelding
     for beamset in beamsets:
+        print(beamsets)
         # Beamsetidentifier = "planname:beamsetname"
         plan = beamset.split(":")[0]
 
@@ -113,28 +111,38 @@ def Export(destination, case, beamsets):
         structureset = case.PatientModel.StructureSets[examination.Name]
 
         # Check for invalid volumes in the structureset
+        # Man kan ikke eksportere plan med ugyldige strukturer (rød firkant), men man kan eksportere
+        # Volumer overriden strukturer (gule trekanter)
 
         # Ikke tomme volumer som er rød har primary shape og DerivedRoiStatus. IsShapeDirty = True
 
         # Tomme røde volumer har DerivedRoiExpression og Primary Shape er Null.
 
         # Overridden volumer har DerivedRoiStatus = Null
-
+        errormessage = None
         for roi in structureset.RoiGeometries:
             # Det er bare derived Rois som blir invalid
             if roi.OfRoi.DerivedRoiExpression:
                 # ikke tomme derived rois
                 if roi.PrimaryShape:
                     if roi.PrimaryShape.DerivedRoiStatus:
+                        # red volumes have dirty shape
                         if roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty:
-                            errormessage = "Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination)
-                            print("Ugyldig Roi ({}) funnet i plan-CT: {}".format(roi.OfRoi.Name, examination))
-                            return errormessage
-                # tomme derived rois
+                            errormessage = "Ugyldig Roi ({}) funnet i plan-CT: {}".format(roi.OfRoi.Name, examination.Name)
+                            print("Ugyldig Roi ({}) funnet i plan-CT: {}\noverride eller underive".format(roi.OfRoi.Name, examination.Name))
+                            # Fjerner plan med ugyldige volumer
+                            beamsets.remove(beamset)
+                            break
+                    # empty overriden rois
+                    else:
+                        continue
+                # tomme ugyldige derived rois
                 else:
-                    errormessage = "Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination)
-                    print("Ugyldig Roi ({}) funnet i plan CT: {}".format(roi.OfRoi.Name, examination))
-                    return errormessage
+                    errormessage = "Ugyldig Roi ({}) funnet i plan-CT: {}".format(roi.OfRoi.Name, examination.Name)
+                    print("Ugyldig Roi ({}) funnet i plan-CT: {}\noverride eller underive".format(roi.OfRoi.Name, examination.Name))
+                    beamsets.remove(beamset)
+                    break
+
 
     try:
 

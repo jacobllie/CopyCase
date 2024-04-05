@@ -55,7 +55,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     #Looping trough plans
 
     exported_plans = []
-    for plan in case.TreatmentPlans: #[case.TreatmentPlans["Lunge ve"]]:
+    for plan in [case.TreatmentPlans["Lunge ve"]]: #case.TreatmentPlans:
 
         """Getting clinical goals and optimization objectives from plan"""
 
@@ -170,7 +170,6 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
                 plan.Name = plan.Name.replace(":", "X").replace("/", "Y")
                 beamsets.append("%s:%s" % (plan.Name, plan.BeamSets[0].DicomPlanLabel))
                 exported_plans.append(plan)
-
 
     # TODO: Dette burde vel også samles opp i en fil per plan
     # Saving isocenter names

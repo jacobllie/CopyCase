@@ -72,7 +72,7 @@ def copycase():
             if get_parameters and not export_files:
                 #Message about needing to export manually
                 root = tk.Tk()
-                app = INFOBOX(root, destination)
+                app = INFOBOX(root, "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n", destination)
                 root.mainloop()
         if set_parameters:
             root = tk.Tk()

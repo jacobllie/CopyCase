@@ -142,33 +142,32 @@ class GUI:
 
 
 class INFOBOX:
-    def __init__(self, root, destination):
+    def __init__(self, root, title, message):
         self.root = root
-        self.destination = destination
+        self.message = message
+        self.title = title
         self.ok = tk.BooleanVar()
         self.create_widgets()
 
         root.title('Info')
-        root.geometry("350x200+10+10")
+        root.geometry("350x150+10+10")
     def create_widgets(self):
 
-        message = "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n"
+        frame = tk.Frame(self.root)
+        frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
 
-        btn = tk.Button(self.root, text="OK", command=self.confirm)
-        btn.place(x=150, y=110, height=50, width=70)
-        lbl = tk.Label(self.root, text=message, fg='black', font=("Helvetica", 10))
-        lbl.place(x=10, y=40)
-        lbl = tk.Label(self.root, text=self.destination, fg='black', font=("Helvetica",10,"bold"))
-        lbl = tk.Label(self.root, text=self.destination, fg='black', font=("Helvetica",10,"bold"))
-        lbl.place(x=100, y=60)
+        lbl = tk.Label(frame, text=self.title, fg='black', font=("Helvetica", 10, "bold"))
+        lbl.grid(row=0, column=0,columnspan=2)
+        lbl = tk.Label(frame, text=self.message, fg='black', font=("Helvetica", 10))
+        lbl.grid(row=1,column=0,columnspan=2)
+        btn = tk.Button(frame, text="OK", command=self.confirm)
+        btn.grid(row=3,column=0,columnspan=2,pady=10)
         #tk.Label(self.root, text=message).grid(row=0, columnspan=2, pady=10)
         #tk.Button(self.root, text="OK", command=self.confirm).grid(row=2, column=1)
         #self.root.bind("<Return>", self.confirm())
         #self.root.bind("<Escape>", self.cancel())
         # Create a button to trigger the message box
         #ok_button.pack(padx=20, pady=10)
-
-    # TODO: Dersom get parameters but not export is chosen, tell the user to manually export everything to correct folder
 
     def confirm(self):
         self.ok.set(True)
