@@ -4,10 +4,60 @@
 import json
 import os
 import sys
+import time
+import connect
 
 #import local files
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
 from dicom_export import Export
+
+
+def save_derived_roi_children(case, derived_roi_geometries, derived_rois):
+    derived_roi_expressions = {}
+    for roi in derived_rois:
+
+        #derived_roi_children[roi.OfRoi.Name] = roi.GetDependentRois()
+        expression = case.PatientModel.RegionsOfInterest[roi].DerivedRoiExpression
+        for children in expression.Children:
+            if len(children.Children) > 0:
+                derived_roi_expressions[roi] = {}
+                derived_roi_expressions[roi]["output_expression"] = {key: getattr(expression, key) for key in
+                                                                                dir(expression) if not key.startswith('__')
+                                                                                and "Children" not in key}
+                derived_roi_expressions[roi]["A&B_operation"] = children.Operation
+
+                A = children.Children[0]
+                B = children.Children[1]
+
+                derived_roi_expressions[roi]["A_expression"] = {key: getattr(A, key) for key in
+                                                                                dir(A) if not key.startswith('__')
+                                                                                and "Children" not in key}
+                derived_roi_expressions[roi]["B_expression"] = {key: getattr(B, key) for key in
+                                                                dir(B) if not key.startswith('__')
+                                                                and "Children" not in key}
+
+                derived_roi_expressions[roi]["A_expression_operation"] = A.Children[0].Operation
+                derived_roi_expressions[roi]["B_expression_operation"] = B.Children[0].Operation
+
+                derived_roi_expressions[roi]["A_rois"] = [r.RegionOfInterest.Name for r in A.Children[0].Children]
+                derived_roi_expressions[roi]["B_rois"] = [r.RegionOfInterest.Name for r in B.Children[0].Children]
+
+
+            else:
+
+                derived_roi_expressions[roi]["output_expressions"] = {key: getattr(expression, key) for key in dir(expression) if not key.startswith('__')
+                and "Children" not in key}
+                # TODO: Hva faen gjør man dersom man har flere roier i expression A men ingen i B.
+                #  Og hvordan skiller man på det sammenlignet med en vanlig expansion og contraction
+                derived_roi_expressions[roi][]
+    print(derived_roi_expressions)
+            #for c in children.Children:
+            #    pass
+    #print(derived_roi_children)
+
+    sys.exit()
+
+
 
 
 def get_parameters_and_export(initials, destination, patient, case, export_files=True):
@@ -46,10 +96,39 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     with open(os.path.join(destination,'{}_StudyNames.json'.format(initials)), 'w') as f:
         json.dump(examination_names, f)
 
+
+    """Tror ikke vi kommer til å loope gjennom alle struktursett for å hente ut derived roi expression, det tar lang tid.
+    Jeg tror heller vi fokuserer på struktursett koblet til planer
+    # Saving derived roi expression and derived roi status of each roi in each structureset
+    derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
+    derived_rois_dict = {}
+    start = time.time()
+    for structureset in case.PatientModel.StructureSets:
+        derived_rois_dict[structureset.OnExamination.Name] = {}
+        #only looping through derived ROIs
+        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+            expression = case.PatientModel.RegionsOfInterest[roi.OfRoi.Name].DerivedRoiExpression
+            if roi.PrimaryShape:
+                status = roi.PrimaryShape.DerivedRoiStatus
+            else:
+                status = None
+
+            derived_rois_dict[structureset.OnExamination.Name][roi.OfRoi.Name] = (expression, status)
+
+    print("elapsed time")
+    print(time.time() - start)
+
+    print(derived_rois_dict)
+    """
+
     clinical_goals = {}
     beamsets = []
     isocenter_names = {}
-
+    derived_rois_dict = {}
+    derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
+    derived_roi_geometries = [r for r in case.PatientModel.StructureSets[0].RoiGeometries if r.OfRoi.Name in derived_rois]
+    save_derived_roi_children(case, derived_roi_geometries, derived_rois)
+    sys.exit()
     #planning_CTs = {}
 
     #Looping trough plans
@@ -103,13 +182,41 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
             json.dump(arguments, f)
 
 
+        """Getting plan structureset derived roi expressions and status"""
+
+        examination = plan.BeamSets[0].GetPlanningExamination()
+        structureset = case.PatientModel.StructureSets[examination.Name]
+        derived_rois_dict[examination.Name] = {}
+
+        save_derived_roi_expressions(case, examination, derived_roi_geometries)
+
+        for roi in derived_roi_geometries:
+            expression_obj = case.PatientModel.RegionsOfInterest[roi.OfRoi.Name].DerivedRoiExpression
+            # Filter out potential private and special keys starting with __
+            expression = {key: getattr(expression_obj, key) for key in dir(expression_obj) if not key.startswith('__')
+                          and "Children" not in key}
+            #children =
+            if roi.PrimaryShape:
+                status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+            else:
+                status = None
+
+            derived_rois_dict[examination.Name][roi.OfRoi.Name] = (expression, status)
+
+        print(derived_rois_dict)
+
         """Performing plan sanity check: Is the plan approved, is it imported, does it have clinical doses. All things
         required for scriptable dicom export"""
         print(plan.Name)
 
+        # If plan doesnt have any beamsets
         if len(plan.BeamSets) < 1:
             continue
 
+        # If the have beams with non-zero MU
+        if not all([True if beam.BeamMU > 0 else False for beam in plan.BeamSets[0].Beams]):
+            print("{} has beams with non-zero MU".format(plan.Name))
+            continue
         approved = None
         try:
             if plan.Review.ApprovalStatus == "Approved":
@@ -171,11 +278,13 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
                 beamsets.append("%s:%s" % (plan.Name, plan.BeamSets[0].DicomPlanLabel))
                 exported_plans.append(plan)
 
-    # TODO: Dette burde vel også samles opp i en fil per plan
+    # saving derived roi expressions and derived roi geometry statuses
+    with open(os.path.join(destination, '{}_derived_roi_dict.json'.format(initials)), 'w') as f:
+        json.dump(derived_rois_dict, f)
+
     # Saving isocenter names
     with open(os.path.join(destination, '{}_isocenter_names.json'.format(initials)), 'w') as f:
         json.dump(isocenter_names, f)
-
 
     #Exporting CT studies, doses beams and registrations
     #Saving changes before export
