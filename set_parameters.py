@@ -13,6 +13,7 @@ from tkinter import ttk
 from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
 from GUI import ProgressBar, ConfirmCase
+from roi_algebra import generate_roi_algebra
 
 
 def extract_number(s):
@@ -22,7 +23,7 @@ def extract_number(s):
         return float('inf')  # Put non-numeric values at the end
 
 
-def set_parameters(Progress, initials, importfolder, patient, case):
+def set_parameters_func(Progress, initials, importfolder, patient, case):
     """
     Function that imports examinations, plans and doses to new case and sets isodose colortable, examination names,
     optimization objectives, clinical goals and plan CT names to generate a copied case.
@@ -94,6 +95,16 @@ def set_parameters(Progress, initials, importfolder, patient, case):
     #Exam names of original case
     examination_names_imported = json.load(open(os.path.join(importfolder, '{}_StudyNames.json'.format(initials))))
 
+    #names of planning CTs
+    planningCT_names = json.load(open(os.path.join(importfolder, '{}_planningCT_names.json'.format(initials))))
+
+    #derived roi expressions
+    derived_roi_dict = json.load(open(os.path.join(importfolder, '{}_derived_roi_dict.json'.format(initials))))
+
+    #derived roi status
+    derived_roi_status = json.load(open(os.path.join(importfolder, '{}_derived_roi_status.json'.format(initials))))
+
+
     lung = None
     for i, examination in enumerate(case.Examinations):
         try:
@@ -150,6 +161,10 @@ def set_parameters(Progress, initials, importfolder, patient, case):
                                             ExaminationNames=fourDCT)
         except:
             pass
+
+    # Generating roi algebra for derived rois
+    Progress.update_operation("Oppdatererer derived rois")
+    generate_roi_algebra(case, derived_roi_dict, derived_roi_status, planningCT_names, Progress)
 
     CopyPlanName = []
     for i, plan in enumerate(case.TreatmentPlans):
@@ -231,7 +246,7 @@ def set_parameters(Progress, initials, importfolder, patient, case):
 
         # Adding optimization functions from the original plan for each ROI
         for j, arg_dict in enumerate(arguments):
-            prog = round(((j+1) / len(arguments)) * 100,0)
+            prog = round(((j+1) / len(arguments)) * 100, 0)
             Progress.update_progress(prog)
 
             with CompositeAction('Add Optimization Function'):

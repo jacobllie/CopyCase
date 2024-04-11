@@ -125,12 +125,15 @@ def save_derived_roi_expressions(case, derived_rois):
 
         if len(dependent_rois) < 2:
             # We have a simple expansion/contraction
-            derived_roi_expressions[roi]["A_rois"] = dependent_rois
+            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
+            derived_roi_expressions[roi]["A rois"] = dependent_rois
         else:
+            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
             operation = 0
             operation = loop_derived_roi_expression(expression.Children, operation)
             save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
 
+    sorted_derived_roi_expression = {}
 
     return derived_roi_expressions
 
@@ -267,6 +270,9 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
 
         examination = plan.BeamSets[0].GetPlanningExamination()
         structureset = case.PatientModel.StructureSets[examination.Name]
+        """We need this to know which structuresets we need to apply the derived roi expression to in the
+                    set parameters."""
+        planning_CTs[plan.Name] = examination.Name
         print(examination.Name)
         derived_roi_status[examination.Name] = {}
         for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
@@ -345,7 +351,6 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
 
 
         if dose_computed and not approved and not imported:
-            planning_CTs[plan.Name] = examination.Name
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
             #Changing name of beamset to be compatible with the ScriptableDicomExport function
             if export_files:

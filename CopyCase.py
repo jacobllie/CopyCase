@@ -11,7 +11,7 @@ from tkinter import messagebox
 # Import local files:
 from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import get_parameters_and_export
-from set_parameters import set_parameters
+from set_parameters import set_parameters_func
 from GUI import GUI, INFOBOX, ProgressBar
 from dicom_import import Import
 
@@ -80,10 +80,14 @@ def copycase():
             app = ProgressBar(root)
             # Import ans set parameters is the work function
             # We need to call the update progress function inside the work function
-            if import_files:
+            if import_files and not set_parameters:
                 Import(importfolder, patient)
-            if set_parameters:
-                set_parameters(app, initials, importfolder, patient, case)
+                app.quit()
+            if set_parameters and import_files:
+                Import(importfolder, patient)
+                set_parameters_func(app, initials, importfolder, patient, case)
+            if set_parameters and not import_files:
+                set_parameters_func(app, initials, importfolder, patient, case)
             root.mainloop()
 
     else:
@@ -95,9 +99,9 @@ def copycase():
                 app.quit()
             if set_parameters and import_files:
                 Import(importfolder, patient)
-                set_parameters(app, initials, importfolder, patient, case)
+                set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
-                set_parameters(app, initials, importfolder, patient, case)
+                set_parameters_func(app, initials, importfolder, patient, case)
             root.mainloop()
 
     #TODO: Må vi endre hvordan filene slettes?
@@ -111,5 +115,3 @@ def copycase():
         except:
             pass
 
-
-# TODO: Test med pasient som har XRegionkode:0-tot:Frak plan navn, og se om filnavnene blir rett
