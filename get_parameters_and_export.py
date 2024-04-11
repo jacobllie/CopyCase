@@ -12,7 +12,7 @@ from get_and_set_arguments_from_function import get_arguments_from_function, set
 from dicom_export import Export
 
 
-def save_derived_roi_expression(case, derived_roi_geometries, derived_rois):
+def save_derived_roi_expressions(case, derived_rois):
 
 
     def loop_derived_roi_expression(children, operation):
@@ -102,8 +102,6 @@ def save_derived_roi_expression(case, derived_roi_geometries, derived_rois):
                     if "B rois" not in dict:
                         dict["B rois"] = []
                     dict["B rois"].append(children.RegionOfInterest.Name)
-            print(keys)
-            print([getattr(children, key) for key in keys])
             if children.Children:
                 operation = save_derived_roi_children(children.Children, operation, dict, num_operations)
             else:
@@ -117,7 +115,7 @@ def save_derived_roi_expression(case, derived_roi_geometries, derived_rois):
 
 
     derived_roi_expressions = {}
-    for roi in ["PTV1", "roi algebra only expansion", "roi algebra two rois","roi algebra two rois expansion", "ultimate roi algebra"]:#derived_rois:
+    for roi in derived_rois:
         derived_roi_expressions[roi] = {}
         dependent_rois = case.PatientModel.StructureSets[0].RoiGeometries[roi].GetDependentRois()
         expression = case.PatientModel.RegionsOfInterest[roi].DerivedRoiExpression
@@ -129,45 +127,12 @@ def save_derived_roi_expression(case, derived_roi_geometries, derived_rois):
             # We have a simple expansion/contraction
             derived_roi_expressions[roi]["A_rois"] = dependent_rois
         else:
-            print(roi)
             operation = 0
             operation = loop_derived_roi_expression(expression.Children, operation)
             save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
 
 
-
-
-
-        """derived_roi_expressions[roi] = {}
-        derived_roi_expressions[roi]["output_expression"] = {key: getattr(expression, key) for key in
-                                                                        dir(expression) if not key.startswith('__')
-                                                                        and "Children" not in key}
-        derived_roi_expressions[roi]["A&B_operation"] = children.Operation
-
-        A = children.Children[0]
-        B = children.Children[1]
-
-        derived_roi_expressions[roi]["A_expression"] = {key: getattr(A, key) for key in
-                                                                        dir(A) if not key.startswith('__')
-                                                                        and "Children" not in key}
-        derived_roi_expressions[roi]["B_expression"] = {key: getattr(B, key) for key in
-                                                        dir(B) if not key.startswith('__')
-                                                        and "Children" not in key}
-
-        derived_roi_expressions[roi]["A_expression_operation"] = A.Children[0].Operation
-        derived_roi_expressions[roi]["B_expression_operation"] = B.Children[0].Operation
-
-        derived_roi_expressions[roi]["A_rois"] = [r.RegionOfInterest.Name for r in A.Children[0].Children]
-        derived_roi_expressions[roi]["B_rois"] = [r.RegionOfInterest.Name for r in B.Children[0].Children]"""
-
-
-
-
-    print(derived_roi_expressions)
-
-    sys.exit()
-
-
+    return derived_roi_expressions
 
 
 def get_parameters_and_export(initials, destination, patient, case, export_files=True):
@@ -236,13 +201,19 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     isocenter_names = {}
     derived_rois_dict = {}
     derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
-    derived_roi_geometries = [r for r in case.PatientModel.StructureSets[0].RoiGeometries if r.OfRoi.Name in derived_rois]
-    save_derived_roi_expression(case, derived_roi_geometries, derived_rois)
-    sys.exit()
+    derived_roi_geometries = {}
     #planning_CTs = {}
 
-    #Looping trough plans
+    # Getting derived roi expressions
 
+    derived_rois_dict = save_derived_roi_expressions(case, derived_rois)
+
+    derived_roi_status = {}
+
+    print(derived_rois_dict)
+
+
+    #Looping trough plans
     exported_plans = []
     for plan in case.TreatmentPlans:
 
@@ -296,24 +267,18 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
         examination = plan.BeamSets[0].GetPlanningExamination()
         structureset = case.PatientModel.StructureSets[examination.Name]
-        derived_rois_dict[examination.Name] = {}
-
-        save_derived_roi_expressions(case, examination, derived_roi_geometries)
-
-        for roi in derived_roi_geometries:
-            expression_obj = case.PatientModel.RegionsOfInterest[roi.OfRoi.Name].DerivedRoiExpression
-            # Filter out potential private and special keys starting with __
-            expression = {key: getattr(expression_obj, key) for key in dir(expression_obj) if not key.startswith('__')
-                          and "Children" not in key}
-            #children =
-            if roi.PrimaryShape:
+        print(examination.Name)
+        derived_roi_status[examination.Name] = {}
+        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+            # all derived rois have primary shape
+            if roi.PrimaryShape.DerivedRoiStatus:
+                # red volumes have dirty shape
                 status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+            # non empty overriden rois
             else:
-                status = None
+                status = -1
 
-            derived_rois_dict[examination.Name][roi.OfRoi.Name] = (expression, status)
-
-        print(derived_rois_dict)
+            derived_roi_status[examination.Name][roi.OfRoi.Name] = status
 
         """Performing plan sanity check: Is the plan approved, is it imported, does it have clinical doses. All things
         required for scriptable dicom export"""
@@ -391,6 +356,9 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     # saving derived roi expressions and derived roi geometry statuses
     with open(os.path.join(destination, '{}_derived_roi_dict.json'.format(initials)), 'w') as f:
         json.dump(derived_rois_dict, f)
+
+    with open(os.path.join(destination, '{}_derived_roi_status.json'.format(initials)), 'w') as f:
+        json.dump(derived_roi_status, f)
 
     # Saving isocenter names
     with open(os.path.join(destination, '{}_isocenter_names.json'.format(initials)), 'w') as f:
