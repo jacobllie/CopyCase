@@ -11,8 +11,9 @@ from tkinter import messagebox
 # Import local files:
 from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import get_parameters_and_export
-from import_and_set_parameters import import_and_set_parameters
+from set_parameters import set_parameters
 from GUI import GUI, INFOBOX, ProgressBar
+from dicom_import import Import
 
 
 def copycase():
@@ -74,22 +75,29 @@ def copycase():
                 root = tk.Tk()
                 app = INFOBOX(root, "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n", destination)
                 root.mainloop()
-        if set_parameters:
+        if import_files or set_parameters:
             root = tk.Tk()
             app = ProgressBar(root)
             # Import ans set parameters is the work function
             # We need to call the update progress function inside the work function
-            import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
+            if import_files:
+                Import(importfolder, patient)
+            if set_parameters:
+                set_parameters(app, initials, importfolder, patient, case)
             root.mainloop()
 
     else:
-        if set_parameters:
-            #TODO: Skriv hva som gjøres i progressbar
+        if import_files or set_parameters:
             root = tk.Tk()
             app = ProgressBar(root)
-            # Import ans set parameters is the work function
-            # We need to call the update progress function inside the work function
-            import_and_set_parameters(app, initials, importfolder, patient, case, import_files=import_files)
+            if import_files and not set_parameters:
+                Import(importfolder, patient)
+                app.quit()
+            if set_parameters and import_files:
+                Import(importfolder, patient)
+                set_parameters(app, initials, importfolder, patient, case)
+            if set_parameters and not import_files:
+                set_parameters(app, initials, importfolder, patient, case)
             root.mainloop()
 
     #TODO: Må vi endre hvordan filene slettes?

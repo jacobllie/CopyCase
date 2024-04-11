@@ -135,7 +135,7 @@ def save_derived_roi_expressions(case, derived_rois):
     return derived_roi_expressions
 
 
-def get_parameters_and_export(initials, destination, patient, case, export_files=True):
+def get_parameters_and_export(initials, destination, patient, case,export_files=True):
     """
     Function that extracts isodose colortable, imaging scan names,
     optimization objectives, clinical goals and plan CT names and
@@ -202,7 +202,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     derived_rois_dict = {}
     derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
     derived_roi_geometries = {}
-    #planning_CTs = {}
+    planning_CTs = {}
 
     # Getting derived roi expressions
 
@@ -345,6 +345,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
 
         if dose_computed and not approved and not imported:
+            planning_CTs[plan.Name] = examination.Name
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
             #Changing name of beamset to be compatible with the ScriptableDicomExport function
             if export_files:
@@ -363,6 +364,10 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     # Saving isocenter names
     with open(os.path.join(destination, '{}_isocenter_names.json'.format(initials)), 'w') as f:
         json.dump(isocenter_names, f)
+
+    # saving planning CT names
+    with open(os.path.join(destination, '{}_planningCT_names.json'.format(initials)), 'w') as f:
+        json.dump(planning_CTs, f)
 
     #Exporting CT studies, doses beams and registrations
     #Saving changes before export
