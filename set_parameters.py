@@ -67,10 +67,8 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
     case = patient.Cases[most_current_case]
 
     # Changing name to documentation, because the original case should be the one to change
-    case.CaseName = "Dokumentasjonscase {}".format(
-        len([c for c in patient.Cases if "Dokumentasjonscase" in c.CaseName]))
-
-    print(case)
+    case.CaseName = "Kopiert Case {}".format(
+        len([c for c in patient.Cases if "Kopiert Case" in c.CaseName]))
 
     # Pass på at dette funker
     root = tk.Toplevel()
@@ -164,6 +162,8 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
 
     # Generating roi algebra for derived rois
     Progress.update_operation("Oppdatererer derived rois")
+
+    # This works only when the structureset is not approved
     generate_roi_algebra(case, derived_roi_dict, derived_roi_status, planningCT_names, Progress)
 
     CopyPlanName = []

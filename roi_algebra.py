@@ -15,8 +15,6 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
 
         expression = derived_roi_expression[roi.Name]
         # we put the algebra on the first planning ct
-        examination = case.Examinations[list(planningCT_names.values())[0]]
-        status = derived_roi_status[examination.Name][roi.Name]
         try:
             if expression["SimpleExpansion/Contraction"]:
                 roi.SetAlgebraExpression(
