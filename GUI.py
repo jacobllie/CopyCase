@@ -5,6 +5,7 @@ import sys
 import time
 from tkinter.messagebox import askokcancel, WARNING
 import os
+import threading
 
 
 class GUI:
@@ -215,36 +216,31 @@ class ProgressBar:
         self.root.update_idletasks()  # Update the tkinter window
 
     def quit(self):
-        self.root.destroy()
-"""class ProgressBar:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Progress")
+        self.root.quit()
 
-        # Create a progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(self.root, variable=self.progress_var, maximum=100)
-        self.progress_bar.grid(column=0, row=0, columnspan=2, padx=20, pady=20, sticky="ew")
+class ScrollBar(threading.Thread):
+    def __init__(self, master, label_text, options):
+        self.master = master
+        threading.Thread.__init__(self)
+        self.start()
+        self.label_text = label_text
+        self.options = options
 
-        self.operation_label = ttk.Label(self.root, text="")
-        self.operation_label.grid(column=0, row=1, columnspan=2, pady=10)
-        # Create a label to display progress percentage
-        self.value_label = ttk.Label(self.root, text="0%")
-        self.value_label.grid(column=0, row=2, columnspan=2, pady=10)
+        self.master.title("")
 
-    def update_operation(self, text):
-        self.operation_label.config(text=text)
+        self.label = tk.Label(master, text=label_text,width=50,height=2)
+        self.label.pack()
 
-    def update_progress(self, iteration):
-        self.value_label.config(text="{}%".format(iteration))
-        #self.value_label.grid(column=0, row=1, columnspan=2)
+        self.scrollbar = tk.Scrollbar(master)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-        self.progress_var.set(iteration)  # Update the progress bar
-        self.root.update_idletasks()       # Update the tkinter window
+        self.listbox = tk.Listbox(master, yscrollcommand=self.scrollbar.set, width=50,height=10)
+        for option in options:
+            self.listbox.insert(tk.END, option)
+        self.listbox.pack(fill=tk.BOTH)
 
+        self.scrollbar.config(command=self.listbox.yview)
 
-    def quit(self):
-        self.root.destroy()"""
 
 class ConfirmCase:
     def __init__(self, root,case):

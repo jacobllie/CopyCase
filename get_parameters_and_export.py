@@ -6,10 +6,12 @@ import os
 import sys
 import time
 import connect
+import tkinter as tk
 
 #import local files
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
 from dicom_export import Export
+from GUI import INFOBOX
 
 
 def save_derived_roi_expressions(case, derived_rois):
@@ -149,6 +151,8 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
     :param case: RayStation PyScriptObject
     :return: None
     """
+
+    error = ""
 
     #Including all ROIs for export and extracting derived roi expression
     ROIs = []
@@ -349,6 +353,12 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
                 print("Could not recompute dose")
                 dose_computed = False
 
+        if not dose_computed:
+            error += "\nCan't compute doses for {}".format(plan.Name)
+        if approved:
+            error += "\n{} is approved".format(plan.Name)
+        if imported:
+            error += "\n{} has \"is imported\" in plan comment. If it is imported recalculate doses and remove the comment".format(plan.Name)
 
         if dose_computed and not approved and not imported:
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
@@ -379,9 +389,11 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
     patient.Save()
 
     if export_files and not approved and not imported:
-        error = Export(destination, case, beamsets)
-        if error:
-            return error
+        exporterror = Export(destination, case, beamsets)
+        if exporterror:
+            error += "\n"+exporterror
+            #return error
+            pass
 
     #Endrer navnet tilbake til det opprinnelige
     if export_files:
@@ -391,6 +403,11 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
             except:
                 print("Could not change plan name")
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
+
+    if error != "":
+        root = tk.Tk()
+        app = INFOBOX(root, "Error", error)
+        root.mainloop()
 
     patient.Save()
 

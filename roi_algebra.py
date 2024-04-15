@@ -119,7 +119,10 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
 
 
         except:
-            error += "\nCould not generate roi algebra for {}".format(roi.Name)
+            if roi.Name in error:
+                pass
+            else:
+                error += "\n{}".format(roi.Name)
     i = 0
     for e in planningCT_names.values():
         print(e)
@@ -137,6 +140,8 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 elif derived_roi_status[examination.Name][roi.Name] == -1:
                     pass
             except:
-                error += "\nCould not update derived roi {}".format(roi.Name)
-    print(error)
+                if roi.Name in error:
+                    pass
+                else:
+                    error += "\n{}".format(roi.Name)
     return error

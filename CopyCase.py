@@ -12,7 +12,7 @@ from tkinter import messagebox
 from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import get_parameters_and_export
 from set_parameters import set_parameters_func
-from GUI import GUI, INFOBOX, ProgressBar
+from GUI import GUI, INFOBOX, ProgressBar, ScrollBar
 from dicom_import import Import
 
 
@@ -69,6 +69,7 @@ def copycase():
             root = tk.Tk()
             root.withdraw()
             tk.messagebox.showwarning("Warning", error, icon="warning")
+            error = None
         if not export_files:
             if get_parameters and not export_files:
                 #Message about needing to export manually
@@ -81,28 +82,37 @@ def copycase():
             # Import ans set parameters is the work function
             # We need to call the update progress function inside the work function
             if import_files and not set_parameters:
-                Import(importfolder, patient)
-                app.quit()
+                import_error = Import(importfolder, patient, root)
             if set_parameters and import_files:
-                Import(importfolder, patient)
-                set_parameters_func(app, initials, importfolder, patient, case)
+                import_error = Import(importfolder, patient, root)
+                error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
-                set_parameters_func(app, initials, importfolder, patient, case)
-            root.mainloop()
+                error = set_parameters_func(app, initials, importfolder, patient, case)
+
 
     else:
         if import_files or set_parameters:
             root = tk.Tk()
             app = ProgressBar(root)
             if import_files and not set_parameters:
-                Import(importfolder, patient)
-                app.quit()
+                import_error = Import(importfolder, patient, root)
             if set_parameters and import_files:
-                Import(importfolder, patient)
-                set_parameters_func(app, initials, importfolder, patient, case)
+                import_error = Import(importfolder, patient, root)
+                error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
-                set_parameters_func(app, initials, importfolder, patient, case)
-            root.mainloop()
+                error = set_parameters_func(app, initials, importfolder, patient, case)
+
+    # TODO: Håndter flere potensielle errormessages
+    if error != "":
+        root.withdraw()
+        errormessage = tk.Toplevel()
+        options = error.split("\n")
+        app = ScrollBar(errormessage, "Could not generate derived roi algebra for:", options)
+        # close window when x is pressed
+        errormessage.protocol("WM_DELETE_WINDOW", root.destroy)
+        errormessage.mainloop()
+
+    root.mainloop()
 
     #TODO: Må vi endre hvordan filene slettes?
 

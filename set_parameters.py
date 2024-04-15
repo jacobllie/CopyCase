@@ -8,11 +8,12 @@ import System.Drawing
 import datetime
 import tkinter as tk
 from tkinter import ttk
+import threading
 
 # Importing local files:
 from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
-from GUI import ProgressBar, ConfirmCase
+from GUI import ProgressBar, ConfirmCase, INFOBOX, ScrollBar
 from roi_algebra import generate_roi_algebra
 
 
@@ -57,8 +58,6 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
     values in the list rather than the indices. It does the same as numpy.argmax
     """
 
-
-
     most_current_idx = max(range(len(datetimes)), key=datetimes.__getitem__)
     most_current_case = case_info[most_current_idx]["Name"]
 
@@ -68,7 +67,7 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
 
     # Changing name to documentation, because the original case should be the one to change
     case.CaseName = "Kopiert Case {}".format(
-        len([c for c in patient.Cases if "Kopiert Case" in c.CaseName]))
+        len([c for c in patient.Cases if "Kopiert Case" in c.CaseName])+1)
 
     # Pass på at dette funker
     root = tk.Toplevel()
@@ -164,7 +163,9 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
     Progress.update_operation("Oppdatererer derived rois")
 
     # This works only when the structureset is not approved
-    generate_roi_algebra(case, derived_roi_dict, derived_roi_status, planningCT_names, Progress)
+    roi_error = generate_roi_algebra(case, derived_roi_dict, derived_roi_status, planningCT_names, Progress)
+    # TODO: fix this
+
 
     CopyPlanName = []
     for i, plan in enumerate(case.TreatmentPlans):
@@ -198,10 +199,15 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
         # If plan has copy in
         if plan.Review:
             if plan.Review.ApprovalStatus == "Approved":
-                CopyPlanName.append("{} Copy".format(plan.Name))
-                case.CopyPlan(PlanName=plan.Name, NewPlanName="{} Copy".format(plan.Name), KeepBeamSetNames=True)
-                plan = case.TreatmentPlans["{} Copy".format(plan.Name)]
-                plan_filename = original_plan_name.replace("/","Y").replace(":","X")
+                copyname = "{} Copy".format(plan.Name)
+                CopyPlanName.append(copyname)
+                if copyname not in [p.Name for p in case.TreatmentPlans]:
+                    case.CopyPlan(PlanName=plan.Name, NewPlanName="{} Copy".format(plan.Name), KeepBeamSetNames=True)
+                    plan = case.TreatmentPlans["{} Copy".format(plan.Name)]
+                    plan_filename = original_plan_name.replace("/","Y").replace(":","X")
+                else:
+                    print("plan copy already exists")
+                    continue
 
         else:
             # Need this to extract the correct file
@@ -302,8 +308,11 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
         except:
             print("Could not compute objective functions")
 
+
     # Quitting progresswindow
     Progress.quit()
     patient.Save()
 
-    pass
+    if roi_error != "":
+        return roi_error
+
