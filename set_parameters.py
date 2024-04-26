@@ -174,6 +174,8 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
     CopyPlanName = []
     for i, plan in enumerate(case.TreatmentPlans):
 
+        print(plan)
+
         # For some reason, if a plan copy is generated within the loop it appears in case. TreatmentPlans in the next iteration
         # So we skip it if it appears
         try:
@@ -230,6 +232,7 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
                 for beam in plan.BeamSets[0].Beams:
                     beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
 
+        print("Here")
 
         #print("Plan Filename")
         #print(plan_filename)

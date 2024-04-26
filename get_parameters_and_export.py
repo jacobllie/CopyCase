@@ -12,7 +12,7 @@ import tkinter as tk
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
 from dicom_export import Export
 from GUI import INFOBOX
-from utils import save_derived_roi_expressions
+from utils import save_derived_roi_expressions, save_derived_roi_status
 
 
 def get_parameters_and_export(initials, destination, patient, case, export_files=True):
@@ -268,23 +268,9 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         planning_CTs[plan.Name] = examination.Name
         print(examination.Name)
         derived_roi_status[examination.Name] = {}
-        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
-            # ikke tomme derived rois
-            if roi.PrimaryShape:
-                # røde volumer har derivedroistatus
-                if roi.PrimaryShape.DerivedRoiStatus:
-                    # red volumes have dirty shape, updated volumes dont have dirty shapes
-                    status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
-                else:
-                    # overriden empty or non empty rois
-                    status = -1
-                # non empty overriden rois
-            else:
-                # empty red rois
-                status = True
 
-            derived_roi_status[examination.Name][roi.OfRoi.Name] = status
-
+        derived_roi_status[examination.Name] = save_derived_roi_status(structureset, derived_rois,
+                                                                       derived_roi_status[examination.Name])
 
         if dose_computed and not approved and not imported:
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name

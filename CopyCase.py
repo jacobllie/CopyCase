@@ -109,6 +109,8 @@ def copycase():
 
     else:
         if import_files or set_parameters:
+            prog = tk.Tk()
+            app = ProgressBar(prog)
             if import_files and not set_parameters:
                 import_error = Import(importfolder, patient)
             if set_parameters and import_files:

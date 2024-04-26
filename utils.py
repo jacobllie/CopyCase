@@ -1,5 +1,5 @@
 import connect
-
+import sys
 
 def save_derived_roi_expressions(case, derived_rois):
 
@@ -101,147 +101,188 @@ def save_derived_roi_expressions(case, derived_rois):
         derived_roi_expressions[roi] = {}
         dependent_rois = case.PatientModel.StructureSets[0].RoiGeometries[roi].GetDependentRois()
         expression = case.PatientModel.RegionsOfInterest[roi].DerivedRoiExpression
-        derived_roi_expressions[roi]["Output expression"] = {key: getattr(expression, key) for key in
+
+        if "InwardDistance" in dir(expression):
+            # Wall
+            derived_roi_expressions[roi]["Wall expression"] = {key: getattr(expression, key) for key in
                                                                                 dir(expression) if not key.startswith('__')
                                                                                 and "Children" not in key}
-
-        if len(dependent_rois) < 2:
-            # We have a simple expansion/contraction
-            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
-            derived_roi_expressions[roi]["A rois"] = dependent_rois
+            derived_roi_expressions[roi]["Wall roi"] = dependent_rois
         else:
-            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
-            operation = 0
-            operation = loop_derived_roi_expression(expression.Children, operation)
-            save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
+
+            derived_roi_expressions[roi]["Output expression"] = {key: getattr(expression, key) for key in
+                                                                                    dir(expression) if not key.startswith('__')
+                                                                                    and "Children" not in key}
+
+            if len(dependent_rois) < 2:
+                # We have a simple expansion/contraction
+                derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
+                derived_roi_expressions[roi]["A rois"] = dependent_rois
+            else:
+                derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
+                operation = 0
+                operation = loop_derived_roi_expression(expression.Children, operation)
+                save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
 
     sorted_derived_roi_expression = {}
 
     return derived_roi_expressions
 
+def save_derived_roi_status(structureset, derived_rois, derived_roi_status):
+    for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+        # ikke tomme derived rois
+        if roi.PrimaryShape:
+            # røde volumer har derivedroistatus
+            if roi.PrimaryShape.DerivedRoiStatus:
+                # red volumes have dirty shape, updated volumes dont have dirty shapes
+                status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+            else:
+                # overriden empty or non empty rois
+                status = -1
+            # non empty overriden rois
+        else:
+            # empty red rois
+            status = True
+
+        derived_roi_status[roi.OfRoi.Name] = status
+    return derived_roi_status
 
 def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, planningCT_names, Progress):
     """
-
+    Generating roi algebra expressions for derived rois
     :param case:
     :param derived_roi_expression:
     :param derived_roi_status:
     :return:
     """
-    error = ""
+    error = "Could not generate roi algebra for:"
+    succesfull = []
     derived_rois = [r for r in case.PatientModel.RegionsOfInterest if r.Name in derived_roi_expression]
-    for roi in derived_rois:
+    for i, roi in enumerate(derived_rois):
 
         expression = derived_roi_expression[roi.Name]
-        # we put the algebra on the first planning ct
-        try:
-            if expression["SimpleExpansion/Contraction"]:
-                roi.SetAlgebraExpression(
-                                          ExpressionA={
-                                              "Operation": "Union",
-                                              "SourceRoiNames": expression["A rois"],
-                                              'MarginSettings': {
-                                                  'Type': "Contract",
-                                                  'Superior': 0,
-                                                  'Inferior': 0,
-                                                  'Anterior': 0,
-                                                  'Posterior': 0,
-                                                  'Right': 0,
-                                                  'Left': 0}},
-                                          ExpressionB={
-                                              "Operation": "Union",
-                                              "SourceRoiNames": [],
-                                              'MarginSettings': {
-                                                  'Type': "Contract",
-                                                  'Superior': 0,
-                                                  'Inferior': 0,
-                                                  'Anterior': 0,
-                                                  'Posterior': 0,
-                                                  'Right': 0,
-                                                  'Left': 0}},
-                                          ResultMarginSettings={
-                                              'Type': expression["Output expression"]["ExpandContractType"],
-                                              'Superior': expression["Output expression"]["SuperiorDistance"],
-                                              'Inferior': expression["Output expression"]["InferiorDistance"],
-                                              'Anterior': expression["Output expression"]["AnteriorDistance"],
-                                              'Posterior': expression["Output expression"]["PosteriorDistance"],
-                                              'Right': expression["Output expression"]["RightDistance"],
-                                              'Left': expression["Output expression"]["LeftDistance"]})
 
-            elif "A&B operation" in expression.keys():
-                roi.SetAlgebraExpression(
-                                          ExpressionA={
-                                             "Operation": expression["A operation"],
-                                             "SourceRoiNames": expression["A rois"],
-                                             'MarginSettings': {
-                                                 'Type': expression["A expression"]["ExpandContractType"],
-                                                 'Superior': expression["A expression"]["SuperiorDistance"],
-                                                 'Inferior': expression["A expression"]["InferiorDistance"],
-                                                 'Anterior': expression["A expression"]["AnteriorDistance"],
-                                                 'Posterior': expression["A expression"]["PosteriorDistance"],
-                                                 'Right': expression["A expression"]["RightDistance"],
-                                                 'Left': expression["A expression"]["LeftDistance"]}},
-                                         ExpressionB={
-                                             "Operation": expression["B operation"],
-                                             "SourceRoiNames": expression["B rois"],
-                                             'MarginSettings': {
-                                                 'Type': expression["B expression"]["ExpandContractType"],
-                                                 'Superior': expression["B expression"]["SuperiorDistance"],
-                                                 'Inferior': expression["B expression"]["InferiorDistance"],
-                                                 'Anterior': expression["B expression"]["AnteriorDistance"],
-                                                 'Posterior': expression["B expression"]["PosteriorDistance"],
-                                                 'Right': expression["B expression"]["RightDistance"],
-                                                 'Left': expression["B expression"]["LeftDistance"]}},
-                                         ResultOperation=expression["A&B operation"],
-                                         ResultMarginSettings={
-                                             'Type': expression["Output expression"]["ExpandContractType"],
-                                                 'Superior': expression["Output expression"]["SuperiorDistance"],
-                                                 'Inferior': expression["Output expression"]["InferiorDistance"],
-                                                 'Anterior': expression["Output expression"]["AnteriorDistance"],
-                                                 'Posterior': expression["Output expression"]["PosteriorDistance"],
-                                                 'Right': expression["Output expression"]["RightDistance"],
-                                                 'Left': expression["Output expression"]["LeftDistance"]})
-            else:
-                # no B expression
-                roi.SetAlgebraExpression(
-                                          ExpressionA={
-                                              "Operation": expression["A operation"],
-                                              "SourceRoiNames": expression["A rois"],
-                                              'MarginSettings': {
-                                                  'Type': expression["A expression"]["ExpandContractType"],
-                                                  'Superior': expression["A expression"]["SuperiorDistance"],
-                                                  'Inferior': expression["A expression"]["InferiorDistance"],
-                                                  'Anterior': expression["A expression"]["AnteriorDistance"],
-                                                  'Posterior': expression["A expression"]["PosteriorDistance"],
-                                                  'Right': expression["A expression"]["RightDistance"],
-                                                  'Left': expression["A expression"]["LeftDistance"]}},
-                                          ExpressionB={
-                                              "Operation": "Union",
-                                              "SourceRoiNames": [],
-                                              'MarginSettings': {
-                                                  'Type': "Contract",
-                                                  'Superior': 0,
-                                                  'Inferior': 0,
-                                                  'Anterior': 0,
-                                                  'Posterior': 0,
-                                                  'Right': 0,
-                                                  'Left': 0}},
-                                          ResultMarginSettings={
-                                              'Type': expression["Output expression"]["ExpandContractType"],
-                                              'Superior': expression["Output expression"]["SuperiorDistance"],
-                                              'Inferior': expression["Output expression"]["InferiorDistance"],
-                                              'Anterior': expression["Output expression"]["AnteriorDistance"],
-                                              'Posterior': expression["Output expression"]["PosteriorDistance"],
-                                              'Right': expression["Output expression"]["RightDistance"],
-                                              'Left': expression["Output expression"]["LeftDistance"]})
-            # If status = ShapeIsDirty = False update derived roi
+        if "Wall expression" in expression.keys():
+            roi.SetWallExpression(SourceRoiName=expression["Wall roi"][0],
+                                   OutwardDistance=expression["Wall expression"]["OutwardDistance"],
+                                   InwardDistance=expression["Wall expression"]["InwardDistance"])
+
+        else:
+
+            # we put the algebra on the first planning ct
+            try:
+                if expression["SimpleExpansion/Contraction"]:
+                    roi.SetAlgebraExpression(
+                                              ExpressionA={
+                                                  "Operation": "Union",
+                                                  "SourceRoiNames": expression["A rois"],
+                                                  'MarginSettings': {
+                                                      'Type': "Contract",
+                                                      'Superior': 0,
+                                                      'Inferior': 0,
+                                                      'Anterior': 0,
+                                                      'Posterior': 0,
+                                                      'Right': 0,
+                                                      'Left': 0}},
+                                              ExpressionB={
+                                                  "Operation": "Union",
+                                                  "SourceRoiNames": [],
+                                                  'MarginSettings': {
+                                                      'Type': "Contract",
+                                                      'Superior': 0,
+                                                      'Inferior': 0,
+                                                      'Anterior': 0,
+                                                      'Posterior': 0,
+                                                      'Right': 0,
+                                                      'Left': 0}},
+                                              ResultMarginSettings={
+                                                  'Type': expression["Output expression"]["ExpandContractType"],
+                                                  'Superior': expression["Output expression"]["SuperiorDistance"],
+                                                  'Inferior': expression["Output expression"]["InferiorDistance"],
+                                                  'Anterior': expression["Output expression"]["AnteriorDistance"],
+                                                  'Posterior': expression["Output expression"]["PosteriorDistance"],
+                                                  'Right': expression["Output expression"]["RightDistance"],
+                                                  'Left': expression["Output expression"]["LeftDistance"]})
+
+                elif "A&B operation" in expression.keys():
+                    roi.SetAlgebraExpression(
+                                              ExpressionA={
+                                                 "Operation": expression["A operation"],
+                                                 "SourceRoiNames": expression["A rois"],
+                                                 'MarginSettings': {
+                                                     'Type': expression["A expression"]["ExpandContractType"],
+                                                     'Superior': expression["A expression"]["SuperiorDistance"],
+                                                     'Inferior': expression["A expression"]["InferiorDistance"],
+                                                     'Anterior': expression["A expression"]["AnteriorDistance"],
+                                                     'Posterior': expression["A expression"]["PosteriorDistance"],
+                                                     'Right': expression["A expression"]["RightDistance"],
+                                                     'Left': expression["A expression"]["LeftDistance"]}},
+                                             ExpressionB={
+                                                 "Operation": expression["B operation"],
+                                                 "SourceRoiNames": expression["B rois"],
+                                                 'MarginSettings': {
+                                                     'Type': expression["B expression"]["ExpandContractType"],
+                                                     'Superior': expression["B expression"]["SuperiorDistance"],
+                                                     'Inferior': expression["B expression"]["InferiorDistance"],
+                                                     'Anterior': expression["B expression"]["AnteriorDistance"],
+                                                     'Posterior': expression["B expression"]["PosteriorDistance"],
+                                                     'Right': expression["B expression"]["RightDistance"],
+                                                     'Left': expression["B expression"]["LeftDistance"]}},
+                                             ResultOperation=expression["A&B operation"],
+                                             ResultMarginSettings={
+                                                 'Type': expression["Output expression"]["ExpandContractType"],
+                                                     'Superior': expression["Output expression"]["SuperiorDistance"],
+                                                     'Inferior': expression["Output expression"]["InferiorDistance"],
+                                                     'Anterior': expression["Output expression"]["AnteriorDistance"],
+                                                     'Posterior': expression["Output expression"]["PosteriorDistance"],
+                                                     'Right': expression["Output expression"]["RightDistance"],
+                                                     'Left': expression["Output expression"]["LeftDistance"]})
+                else:
+                    # no B expression
+                    roi.SetAlgebraExpression(
+                                              ExpressionA={
+                                                  "Operation": expression["A operation"],
+                                                  "SourceRoiNames": expression["A rois"],
+                                                  'MarginSettings': {
+                                                      'Type': expression["A expression"]["ExpandContractType"],
+                                                      'Superior': expression["A expression"]["SuperiorDistance"],
+                                                      'Inferior': expression["A expression"]["InferiorDistance"],
+                                                      'Anterior': expression["A expression"]["AnteriorDistance"],
+                                                      'Posterior': expression["A expression"]["PosteriorDistance"],
+                                                      'Right': expression["A expression"]["RightDistance"],
+                                                      'Left': expression["A expression"]["LeftDistance"]}},
+                                              ExpressionB={
+                                                  "Operation": "Union",
+                                                  "SourceRoiNames": [],
+                                                  'MarginSettings': {
+                                                      'Type': "Contract",
+                                                      'Superior': 0,
+                                                      'Inferior': 0,
+                                                      'Anterior': 0,
+                                                      'Posterior': 0,
+                                                      'Right': 0,
+                                                      'Left': 0}},
+                                              ResultMarginSettings={
+                                                  'Type': expression["Output expression"]["ExpandContractType"],
+                                                  'Superior': expression["Output expression"]["SuperiorDistance"],
+                                                  'Inferior': expression["Output expression"]["InferiorDistance"],
+                                                  'Anterior': expression["Output expression"]["AnteriorDistance"],
+                                                  'Posterior': expression["Output expression"]["PosteriorDistance"],
+                                                  'Right': expression["Output expression"]["RightDistance"],
+                                                  'Left': expression["Output expression"]["LeftDistance"]})
+                # If status = ShapeIsDirty = False update derived roi
+                succesfull.append(True)
 
 
-        except:
-            if roi.Name in error:
-                pass
-            else:
-                error += "\n{}".format(roi.Name)
+            except Exception as e:
+                print("Roi {}: {}".format(roi.Name, e))
+                succesfull.append(False)
+                if roi.Name in error:
+                    pass
+                else:
+                    error += "\n{}".format(roi.Name)
+    if all(succesfull):
+        error = ""
     i = 0
     for e in planningCT_names.values():
         print(e)
@@ -251,20 +292,17 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
             Progress.update_progress(prog)
             #if roi geometry not IsShapeDirty
             i += 1
-            if derived_roi_status:
-                # if derived roi status exists, update the derived rois
-                try:
-                    if derived_roi_status[examination.Name][roi.Name] == False:
-                        roi.UpdateDerivedGeometry(Examination=examination, Algorithm="Auto")
-                    elif derived_roi_status[examination.Name][roi.Name] == True:
-                        pass
-                    elif derived_roi_status[examination.Name][roi.Name] == -1:
-                        pass
-                except:
-                    if roi.Name in error:
-                        pass
-                    else:
-                        error += "\n{}".format(roi.Name)
+            try:
+                if derived_roi_status[examination.Name][roi.Name] == False:
+                    roi.UpdateDerivedGeometry(Examination=examination, Algorithm="Auto")
+                elif derived_roi_status[examination.Name][roi.Name] == True:
+                    pass
+                elif derived_roi_status[examination.Name][roi.Name] == -1:
+                    pass
+            except:
+                if roi.Name in error:
+                    pass
+                else:
+                    error += "\n{}".format(roi.Name)
     return error
-
 

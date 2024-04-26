@@ -3,15 +3,16 @@ import time
 
 def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, planningCT_names, Progress):
     """
-
+    Generating roi algebra expressions for derived rois
     :param case:
     :param derived_roi_expression:
     :param derived_roi_status:
     :return:
     """
-    error = ""
+    error = "Could not generate roi algebra for:"
+    succesfull = []
     derived_rois = [r for r in case.PatientModel.RegionsOfInterest if r.Name in derived_roi_expression]
-    for roi in derived_rois:
+    for i,roi in enumerate(derived_rois):
 
         expression = derived_roi_expression[roi.Name]
         # we put the algebra on the first planning ct
@@ -116,13 +117,18 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                                               'Right': expression["Output expression"]["RightDistance"],
                                               'Left': expression["Output expression"]["LeftDistance"]})
             # If status = ShapeIsDirty = False update derived roi
+            succesfull.append(True)
 
 
-        except:
+        except Exception as e:
+            print("Roi {}: {}".format(roi.Name, e))
+            succesfull.append(False)
             if roi.Name in error:
                 pass
             else:
                 error += "\n{}".format(roi.Name)
+    if all(succesfull):
+        error = ""
     i = 0
     for e in planningCT_names.values():
         print(e)

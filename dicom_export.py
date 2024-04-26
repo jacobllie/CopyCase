@@ -132,9 +132,9 @@ def Export(destination, case, beamsets):
                     if roi.PrimaryShape.DerivedRoiStatus:
                         # red volumes have dirty shape
                         if roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty:
-                            errormessage += "\nUgyldig Roi ({}) funnet i plan-CT: {}\n{} ble ikke eksportert\n" \
-                                            "vurder å override eller underive".format(roi.OfRoi.Name, examination.Name,plan)
-                            print("Ugyldig Roi ({}) funnet i plan-CT: {}\noverride eller underive"
+                            errormessage += "\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
+                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)
+                            print("Invalid Roi ({}) found in plan-CT: {}\noverride or underive"
                                   .format(roi.OfRoi.Name, examination.Name))
                             # Fjerner plan med ugyldige volumer
                             beamsets.remove(beamset)
@@ -144,9 +144,9 @@ def Export(destination, case, beamsets):
                         continue
                 # tomme ugyldige derived rois
                 else:
-                    errormessage += "\nUgyldig Roi ({}) funnet i plan-CT: {}\n{} ble ikke eksportert" \
-                                    "\nvurder å override eller underive".format(roi.OfRoi.Name, examination.Name, plan)
-                    print("Ugyldig Roi ({}) funnet i plan-CT: {}\noverride eller underive"
+                    errormessage += "\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
+                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)
+                    print("Invalid Roi ({}) found in plan-CT: {}\noverride or underive"
                           .format(roi.OfRoi.Name, examination.Name))
                     beamsets.remove(beamset)
                     break
