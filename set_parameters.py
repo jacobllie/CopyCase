@@ -63,11 +63,23 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
 
     print("The most currently modified case is {}".format(most_current_case))
 
+
     case = patient.Cases[most_current_case]
 
-    # Changing name to documentation, because the original case should be the one to change
-    case.CaseName = "Kopiert Case {}".format(
-        len([c for c in patient.Cases if "Kopiert Case" in c.CaseName])+1)
+    if "Kopiert Case" in case.CaseName:
+        # If we are already on a copied case we should not change its name
+        pass
+    else:
+        # Changing name to documentation, because the original case should be the one to change
+        copied_cases = [c.CaseName for c in patient.Cases if "Kopiert Case" in c.CaseName]
+
+        # If the patient has copied cases
+        # TODO: Bruk regex her
+        if len(copied_cases) > 0:
+            case.CaseName = "Kopiert Case {}".format(
+                int(copied_cases[-1][-1])+1)
+        else:
+            case.CaseName = "Kopiert Case 1"
 
     # Pass på at dette funker
     confirm = tk.Toplevel()
