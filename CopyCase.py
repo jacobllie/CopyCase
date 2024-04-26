@@ -24,17 +24,33 @@ def copycase():
 
 
     root = tk.Tk()
+    #root.geometry('%dx%d+%d+%d' % (10, 10, 5, 5))
+    #gui = tk.Toplevel()
     app = GUI(root)
-
+    #root.withdraw()
     root.mainloop()
+
     get_parameters, export_files, import_files, set_parameters, delete_files = app.options_list
+
 
     print(delete_files, get_parameters, export_files, import_files, set_parameters)
 
     # Hvis get_parameters er sant, kan vi slette eksisterende filer, men dersom bare delete files er sant, så
     # Kan det være man mener å slette filene etter import og set_parameters
+
+    # if get parameters and export
+    # if any files in tempexport
+    # delete files
+
+
     if delete_files and get_parameters:
         #deleting existing files and folders in tempexport
+        try:
+            delete_files_and_folders(destination)
+        except:
+            pass
+    elif get_parameters or export_files and len([f for f in os.listdir(destination)]) > 0:
+        # To avoid clutter, we delete the files in tempexport
         try:
             delete_files_and_folders(destination)
         except:
@@ -66,57 +82,53 @@ def copycase():
     if get_parameters:
         error = get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
         if error:
-            root = tk.Tk()
-            root.withdraw()
-            tk.messagebox.showwarning("Warning", error, icon="warning")
+            msg = tk.Tk()
+            app = INFOBOX(msg, "Error", error)
+            msg.mainloop()
             error = None
         if not export_files:
             if get_parameters and not export_files:
                 #Message about needing to export manually
-                root = tk.Tk()
-                app = INFOBOX(root, "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n", destination)
-                root.mainloop()
+                msg = tk.Tk()
+                app = INFOBOX(msg, "Eksporter alle planer, doser, bildeserier etc. manuelt til:\n\n", destination)
+                #root.withdraw()
+                msg.mainloop()
         if import_files or set_parameters:
-            root = tk.Tk()
-            app = ProgressBar(root)
+            prog = tk.Tk()
+            app = ProgressBar(prog)
             # Import ans set parameters is the work function
             # We need to call the update progress function inside the work function
             if import_files and not set_parameters:
-                import_error = Import(importfolder, patient, root)
+                import_error = Import(importfolder, patient)
             if set_parameters and import_files:
-                import_error = Import(importfolder, patient, root)
+                import_error = Import(importfolder, patient)
                 error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
                 error = set_parameters_func(app, initials, importfolder, patient, case)
-
+            #prog.mainloop()
 
     else:
         if import_files or set_parameters:
-            root = tk.Tk()
-            app = ProgressBar(root)
             if import_files and not set_parameters:
-                import_error = Import(importfolder, patient, root)
+                import_error = Import(importfolder, patient)
             if set_parameters and import_files:
-                import_error = Import(importfolder, patient, root)
+                import_error = Import(importfolder, patient)
                 error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
                 error = set_parameters_func(app, initials, importfolder, patient, case)
+            #prog.mainloop()
 
     # TODO: Håndter flere potensielle errormessages
-    if error != "":
-        root.withdraw()
-        errormessage = tk.Toplevel()
+    if error != "" and error != None:
+        msg = tk.Tk()
         options = error.split("\n")
-        app = ScrollBar(errormessage, "Could not generate derived roi algebra for:", options)
-        # close window when x is pressed
-        errormessage.protocol("WM_DELETE_WINDOW", root.destroy)
-        errormessage.mainloop()
+        app = ScrollBar(msg, "Error", options)
+        msg.protocol("WM_DELETE_WINDOW", root.destroy)
+        msg.mainloop()
 
     root.mainloop()
 
-    #TODO: Må vi endre hvordan filene slettes?
-
-    # TODO:  If import and set parameters succesfull, then delete files
+    # TODO: If import and set parameters succesfull, then delete files
 
     if set_parameters and delete_files:
         #deleting existing files and folders in tempexport

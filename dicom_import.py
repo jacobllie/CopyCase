@@ -4,7 +4,7 @@ from connect import *
 import tkinter as tk
 import sys
 
-def Import(importfolder, patient, root):
+def Import(importfolder, patient):
     """
     Function that Queries studies from path into a new case
     :param importfolder: str
@@ -16,7 +16,7 @@ def Import(importfolder, patient, root):
 
     # Patient ID for search criterias
     patient_id = patient.PatientID
-
+    error = None
     try:
 
         # Query patients from path by Patient ID

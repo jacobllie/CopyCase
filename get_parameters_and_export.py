@@ -12,135 +12,10 @@ import tkinter as tk
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
 from dicom_export import Export
 from GUI import INFOBOX
+from utils import save_derived_roi_expressions
 
 
-def save_derived_roi_expressions(case, derived_rois):
-
-
-    def loop_derived_roi_expression(children, operation):
-        """
-        This recursive function iterates through the children in a derived roi expression for a derived ROI.
-        The children alterates between a PyScriptObject and a PyScriptCollection. The function counts how many occurences
-        we have of the Operation attributes which reflects if we have roi expansion/contraction, roi algebra with
-        only an A expression or both A and B expressions.
-        :param children: PyScriptObject or PyScriptCollection
-        :param operation: Number of operations in the derived roi expression
-        :return: operation
-        """
-        if type(children) == connect.connect_cpython.PyScriptObject:
-            keys = dir(children)
-            if any(["Operation" in key for key in keys]):
-                operation += 1
-            else:
-                pass
-                #print("Operation {}".format(operation))
-
-            #print("################")
-            #print(keys)
-            #print([getattr(children, key) for key in keys])
-
-            if children.Children:
-                operation = loop_derived_roi_expression(children.Children, operation)
-            else:
-                pass
-                #print("end of the line")
-        else:
-            for child in children:
-                operation = loop_derived_roi_expression(child, operation)
-
-        return operation
-
-    def save_derived_roi_children(children, operation, dict, num_operations):
-        """
-        This function is used when we want to extract the derived roi expression children and not only find the number of
-        operations are present in the derived roi expression
-        :param children: PyScriptObject or PyScriptCollection
-        :param operation: Number of operations in derived roi expression
-        :return: operation
-        """
-        if type(children) == connect.connect_cpython.PyScriptObject:
-            print("################")
-            keys = dir(children)
-            print(operation)
-            if any("Operation" in key for key in keys):
-                # We are on an operation
-                if operation == 0 and num_operations < 3:
-                    # We are on an A operation
-                    dict["A operation"] = children.Operation
-                elif operation == 0 and num_operations == 3:
-                    # We are on an A&B operation
-                    dict["A&B operation"] = children.Operation
-                elif operation == 1:
-                    # we are on the A operation
-                    dict["A operation"] = children.Operation
-                elif operation == 2:
-                    # we are on the B operation
-                    dict["B operation"] = children.Operation
-
-                operation += 1
-
-            elif any("AnteriorDistance" in key for key in keys):
-                print(keys)
-                # we are on an expression
-                if operation < 2:
-                    # we are on the A expression
-                    dict["A expression"] = {key: getattr(children, key) for key in
-                                                                        dir(children) if not key.startswith('__')
-                                                                        and "Children" not in key}
-                else:
-                    dict["B expression"] = {key: getattr(children, key) for key in
-                                            dir(children) if not key.startswith('__')
-                                            and "Children" not in key}
-            elif any("RegionOfInterest" in key for key in keys):
-                print(children.RegionOfInterest.Name)
-                # We are on a region of interest
-                #print(operation)
-                if operation < 3:
-                    # if the A roi key is not present it should be initialized
-                    if "A rois" not in dict:
-                        dict["A rois"] = []
-                    dict["A rois"].append(children.RegionOfInterest.Name)
-                else:
-                    if "B rois" not in dict:
-                        dict["B rois"] = []
-                    dict["B rois"].append(children.RegionOfInterest.Name)
-            if children.Children:
-                operation = save_derived_roi_children(children.Children, operation, dict, num_operations)
-            else:
-                print("end of the line")
-        else:
-            for child in children:
-                operation = save_derived_roi_children(child, operation, dict, num_operations)
-
-        return operation
-
-
-
-    derived_roi_expressions = {}
-    for roi in derived_rois:
-        derived_roi_expressions[roi] = {}
-        dependent_rois = case.PatientModel.StructureSets[0].RoiGeometries[roi].GetDependentRois()
-        expression = case.PatientModel.RegionsOfInterest[roi].DerivedRoiExpression
-        derived_roi_expressions[roi]["Output expression"] = {key: getattr(expression, key) for key in
-                                                                                dir(expression) if not key.startswith('__')
-                                                                                and "Children" not in key}
-
-        if len(dependent_rois) < 2:
-            # We have a simple expansion/contraction
-            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
-            derived_roi_expressions[roi]["A rois"] = dependent_rois
-        else:
-            derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
-            operation = 0
-            operation = loop_derived_roi_expression(expression.Children, operation)
-            save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
-
-    sorted_derived_roi_expression = {}
-
-    return derived_roi_expressions
-
-
-def get_parameters_and_export(initials, destination, patient, case,export_files=True):
+def get_parameters_and_export(initials, destination, patient, case, export_files=True):
     """
     Function that extracts isodose colortable, imaging scan names,
     optimization objectives, clinical goals and plan CT names and
@@ -219,90 +94,62 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
 
     print(derived_rois_dict)
 
+    machine_db = connect.get_current("MachineDB")
+    commisioned_machines = machine_db.QueryCommissionedMachineInfo(Filter = {'IsLinac':True})
+    commission_times = [m["CommissionTime"] for m in commisioned_machines]
+
+    # checking which plans that doesnt have deprecated machines, those will be recalculated.
+    # We are also checking if the plan has a beamset
+    #plans_without_deprecated_machine = [p.BeamSets[0].MachineReference.CommissioningTime in commission_times for p in case.TreatmentPlans
+    #                                    if p.BeamSets]
+    plans_with_beam_and_without_deprecated_machine = [p for p in case.TreatmentPlans if p.BeamSets
+                                        and p.BeamSets[0].MachineReference.CommissioningTime in commission_times]
+
+
+    if len(plans_with_beam_and_without_deprecated_machine) == 0:
+        print("There are no plans with both a beamset, and valid doses.")
+        error += "\nThere are no plans with both a beamset, and valid doses."
+        examination_with_external = [e for e in case.Examinations if e.EquipmentInfo.Modality == "CT" and
+                       "External" in dir(case.PatientModel.StructureSets[e.Name].RoiGeometries) and
+                       case.PatientModel.StructureSets[e.Name].RoiGeometries["External"].HasContours()]
+
+        if len(examination_with_external) > 0:
+            # If we have a CT study with external, we will update the derived roi status on this one
+            derived_roi_status[examination_with_external[0].Name] = {}
+            for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+                # all derived rois have primary shape
+                if roi.PrimaryShape.DerivedRoiStatus:
+                    # red volumes have dirty shape
+                    status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+                # non empty overriden rois
+                else:
+                    status = -1
+
+                derived_roi_status[examination.Name][roi.OfRoi.Name] = status
+        else:
+            derived_roi_status = None
+
 
     #Looping trough plans
     exported_plans = []
-    for plan in case.TreatmentPlans:
-
-        """Getting clinical goals and optimization objectives from plan"""
-
-        PlanOptimization = plan.PlanOptimizations[0]
-        arguments = []
-        # List to hold arg_dicts of all functions.
-        # dictionary that holds the clinical goal objectives
-        clinical_goals[plan] = {}
-
-        # Get arguments from objective functions.
-        if PlanOptimization.Objective != None:
-            for ConstFunction in PlanOptimization.Objective.ConstituentFunctions:
-                arg_dict = get_arguments_from_function(ConstFunction)
-                arg_dict['IsConstraint'] = False
-                arguments.append(arg_dict)
-
-        # Get arguments from constraint functions.
-        for Constraint in PlanOptimization.Constraints:
-            arg_dict = get_arguments_from_function(Constraint)
-            arg_dict['IsConstraint'] = True
-            arguments.append(arg_dict)
-        # Accessing evaluation functions
-        eval_functions = plan.TreatmentCourse.EvaluationSetup.EvaluationFunctions
-
-        for i, ef in enumerate(eval_functions):
-            # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-            planning_goals = ef.PlanningGoal
-            clinical_goals[plan][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria, planning_goals.Type,
-                                       planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
-                                       planning_goals.Priority]
-
-        # Saving each plan with the CT study names
-        # with open(os.path.join(destination,'{}_{}_planningCTs.json'.format(initials, plan.Name.replace("/","V"))), 'w') as f:
-        #    json.dump(planning_CTs, f)
-
-        # Saving clinical goals
-        # Replace / with V in filename
-        with open(os.path.join(destination, '{}_{}_ClinicalGoals.json'.format(initials, plan.Name.replace("/", "Y"))),
-                  'w') as f:
-            json.dump(clinical_goals[plan], f)
-
-        # Saving objectives
-        with open(os.path.join(destination, '{}_{}_objectives.json'.format(initials, plan.Name.replace("/", "Y"))),
-                  'w') as f:
-            json.dump(arguments, f)
-
-
-        """Getting plan structureset derived roi expressions and status"""
-
-        examination = plan.BeamSets[0].GetPlanningExamination()
-        structureset = case.PatientModel.StructureSets[examination.Name]
-        """We need this to know which structuresets we need to apply the derived roi expression to in the
-                    set parameters."""
-        planning_CTs[plan.Name] = examination.Name
-        print(examination.Name)
-        derived_roi_status[examination.Name] = {}
-        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
-            # all derived rois have primary shape
-            if roi.PrimaryShape.DerivedRoiStatus:
-                # red volumes have dirty shape
-                status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
-            # non empty overriden rois
-            else:
-                status = -1
-
-            derived_roi_status[examination.Name][roi.OfRoi.Name] = status
+    approved = False
+    imported = False
+    for i, plan in enumerate(plans_with_beam_and_without_deprecated_machine):#enumerate(case.TreatmentPlans):
 
         """Performing plan sanity check: Is the plan approved, is it imported, does it have clinical doses. All things
-        required for scriptable dicom export"""
-        print(plan.Name)
+                required for scriptable dicom export"""
 
+        # We are checking this in
         # If plan doesnt have any beamsets
-        if len(plan.BeamSets) < 1:
-            continue
+        # if len(plan.BeamSets) < 1:
+        #    continue
 
         # If the have beams with non-zero MU
         if not all([True if beam.BeamMU > 0 else False for beam in plan.BeamSets[0].Beams]):
+            error += "\n{} has beams with non-zero MU".format(plan.Name)
             print("{} has beams with non-zero MU".format(plan.Name))
             continue
-        approved = None
+
         try:
             if plan.Review.ApprovalStatus == "Approved":
                 print(
@@ -312,18 +159,25 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
         except:
             pass
 
-        imported = None
         try:
-            #Skipping imported plans as they cannot be exported to new case
-            #if "IMPORTED" in plan.Comments.upper() or plan.BeamSets[0].FractionDose.DoseValues.IsClinical == True:
+            # Skipping imported plans as they cannot be exported to new case
+            # if "IMPORTED" in plan.Comments.upper() or plan.BeamSets[0].FractionDose.DoseValues.IsClinical == True:
             if "IMPORTED" in plan.BeamSets[0].FractionDose.DoseValues.AlgorithmProperties.DoseAlgorithm.upper():
                 print("Plan: {} is imported and cannot be exported".format(plan.Name))
-                print("Imported funnet i plankommentar. Dersom dosene ikke er importerte, fjern Imported fra plankommentaren.")
+                print(
+                    "Imported funnet i plankommentar. Dersom dosene ikke er importerte, fjern Imported fra plankommentaren.")
                 imported = True
             else:
                 imported = False
         except:
             print("No comment in plan")
+
+        if approved:
+            error += "\n{} is approved".format(plan.Name)
+        if imported:
+            error += "\n{} has \"is imported\" in plan comment. If it is imported recalculate doses and remove the comment".format(
+                plan.Name)
+
 
         # In 2023B Eval the nonexistent objects are None
         # In 12A the nonexistent objects are Null and cannot be extracted
@@ -343,7 +197,7 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
         except:
             try:
                 print("No doses")
-                #Dose does not exist and needs to be recalculated
+                # Dose does not exist and needs to be recalculated
                 plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
                                              RunEntryValidation=True)
                 plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
@@ -353,12 +207,84 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
                 print("Could not recompute dose")
                 dose_computed = False
 
-        if not dose_computed:
-            error += "\nCan't compute doses for {}".format(plan.Name)
-        if approved:
-            error += "\n{} is approved".format(plan.Name)
-        if imported:
-            error += "\n{} has \"is imported\" in plan comment. If it is imported recalculate doses and remove the comment".format(plan.Name)
+            if dose_computed:
+                # It is only necessary to gather clinical goals and objectives from plans with computed doses (which are exported)
+
+                """Getting clinical goals and optimization objectives from plan with commissioned machine"""
+
+                PlanOptimization = plan.PlanOptimizations[0]
+                arguments = []
+                # List to hold arg_dicts of all functions.
+                # dictionary that holds the clinical goal objectives
+                clinical_goals[plan] = {}
+
+                # Get arguments from objective functions.
+                if PlanOptimization.Objective != None:
+                    for ConstFunction in PlanOptimization.Objective.ConstituentFunctions:
+                        arg_dict = get_arguments_from_function(ConstFunction)
+                        arg_dict['IsConstraint'] = False
+                        arguments.append(arg_dict)
+
+                # Get arguments from constraint functions.
+                for Constraint in PlanOptimization.Constraints:
+                    arg_dict = get_arguments_from_function(Constraint)
+                    arg_dict['IsConstraint'] = True
+                    arguments.append(arg_dict)
+                # Accessing evaluation functions
+                eval_functions = plan.TreatmentCourse.EvaluationSetup.EvaluationFunctions
+
+                for i, ef in enumerate(eval_functions):
+                    # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
+                    planning_goals = ef.PlanningGoal
+                    clinical_goals[plan][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria, planning_goals.Type,
+                                               planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
+                                               planning_goals.Priority]
+
+                # Saving each plan with the CT study names
+                # with open(os.path.join(destination,'{}_{}_planningCTs.json'.format(initials, plan.Name.replace("/","V"))), 'w') as f:
+                #    json.dump(planning_CTs, f)
+
+                # Saving clinical goals
+                # Replace / with V in filename
+                with open(os.path.join(destination, '{}_{}_ClinicalGoals.json'.format(initials, plan.Name.replace("/", "Y"))),
+                          'w') as f:
+                    json.dump(clinical_goals[plan], f)
+
+                # Saving objectives
+                with open(os.path.join(destination, '{}_{}_objectives.json'.format(initials, plan.Name.replace("/", "Y"))),
+                          'w') as f:
+                    json.dump(arguments, f)
+
+            if not dose_computed:
+                error += "\nCan't compute doses for {}".format(plan.Name)
+
+        """Getting plan structureset derived roi expressions and status"""
+
+        # Cannot get the plan examination if the plan doesnt have a beamset
+        examination = plan.BeamSets[0].GetPlanningExamination()
+        structureset = case.PatientModel.StructureSets[examination.Name]
+        """We need this to know which structuresets we need to apply the derived roi expression to in the
+                    set parameters."""
+        planning_CTs[plan.Name] = examination.Name
+        print(examination.Name)
+        derived_roi_status[examination.Name] = {}
+        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+            # ikke tomme derived rois
+            if roi.PrimaryShape:
+                # røde volumer har derivedroistatus
+                if roi.PrimaryShape.DerivedRoiStatus:
+                    # red volumes have dirty shape, updated volumes dont have dirty shapes
+                    status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+                else:
+                    # overriden empty or non empty rois
+                    status = -1
+                # non empty overriden rois
+            else:
+                # empty red rois
+                status = True
+
+            derived_roi_status[examination.Name][roi.OfRoi.Name] = status
+
 
         if dose_computed and not approved and not imported:
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
@@ -369,12 +295,15 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
                 beamsets.append("%s:%s" % (plan.Name, plan.BeamSets[0].DicomPlanLabel))
                 exported_plans.append(plan)
 
+
+
     # saving derived roi expressions and derived roi geometry statuses
     with open(os.path.join(destination, '{}_derived_roi_dict.json'.format(initials)), 'w') as f:
         json.dump(derived_rois_dict, f)
 
-    with open(os.path.join(destination, '{}_derived_roi_status.json'.format(initials)), 'w') as f:
-        json.dump(derived_roi_status, f)
+    if derived_roi_status:
+        with open(os.path.join(destination, '{}_derived_roi_status.json'.format(initials)), 'w') as f:
+            json.dump(derived_roi_status, f)
 
     # Saving isocenter names
     with open(os.path.join(destination, '{}_isocenter_names.json'.format(initials)), 'w') as f:
@@ -393,7 +322,6 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
         if exporterror:
             error += "\n"+exporterror
             #return error
-            pass
 
     #Endrer navnet tilbake til det opprinnelige
     if export_files:
@@ -404,11 +332,12 @@ def get_parameters_and_export(initials, destination, patient, case,export_files=
                 print("Could not change plan name")
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
 
-    if error != "":
-        root = tk.Tk()
-        app = INFOBOX(root, "Error", error)
-        root.mainloop()
+    """if error != "":
+        msg = tk.Toplevel()
+        app = INFOBOX(msg, "Error", error)
+        msg.lift()
+        msg.mainloop()"""
 
     patient.Save()
 
-    return None
+    return error

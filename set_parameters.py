@@ -14,7 +14,7 @@ import threading
 from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
 from GUI import ProgressBar, ConfirmCase, INFOBOX, ScrollBar
-from roi_algebra import generate_roi_algebra
+from utils import generate_roi_algebra
 
 
 def extract_number(s):
@@ -70,8 +70,11 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
         len([c for c in patient.Cases if "Kopiert Case" in c.CaseName])+1)
 
     # Pass på at dette funker
-    root = tk.Toplevel()
-    app = ConfirmCase(root,case.CaseName)
+    confirm = tk.Toplevel()
+    # TODO: If the user cancels, make a new popup that asks which case should be modified
+    app = ConfirmCase(confirm, case.CaseName)
+    #app = INFOBOX(confirm, "Confirm", "Er du sikker på at du vil sette parametere for case: {}".format(case.CaseName)
+    #confirm.mainloop()
 
     ColorTable = json.load(open(os.path.join(importfolder, '{}_ColorTable.json'.format(initials))))
 
@@ -98,9 +101,12 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
     #derived roi expressions
     derived_roi_dict = json.load(open(os.path.join(importfolder, '{}_derived_roi_dict.json'.format(initials))))
 
-    #derived roi status
-    derived_roi_status = json.load(open(os.path.join(importfolder, '{}_derived_roi_status.json'.format(initials))))
-
+    try:
+        #derived roi status
+        derived_roi_status = json.load(open(os.path.join(importfolder, '{}_derived_roi_status.json'.format(initials))))
+    except:
+        print("No derived roi status, likely caused by not any ct studies having external geometry")
+        derived_roi_status = None
 
     lung = None
     for i, examination in enumerate(case.Examinations):
@@ -164,8 +170,6 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
 
     # This works only when the structureset is not approved
     roi_error = generate_roi_algebra(case, derived_roi_dict, derived_roi_status, planningCT_names, Progress)
-    # TODO: fix this
-
 
     CopyPlanName = []
     for i, plan in enumerate(case.TreatmentPlans):
@@ -307,7 +311,6 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
             plan.PlanOptimizations[0].EvaluateOptimizationFunctions()
         except:
             print("Could not compute objective functions")
-
 
     # Quitting progresswindow
     Progress.quit()

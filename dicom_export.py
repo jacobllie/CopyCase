@@ -56,6 +56,8 @@ def Export(destination, case, beamsets):
     :param beamsets:
     :return:
     """
+    print("Exporting")
+
     #Alle examinations blir eksportert uavhengig om den har en plan som ikke er eksportert.
     examinations = case.Examinations
     print(case.CaseName)
@@ -153,55 +155,43 @@ def Export(destination, case, beamsets):
 
     try:
 
-        # It is not necessary to assign all of the parameters, you only need to assign the
-        # desired export items. In this example we try to export with
-        # IgnorePreConditionWarnings=False. This is an option to handle possible warnings.
-        # RtStructureSetsForExaminations, RtStructureSetsReferencedFromBeamSets and RtStructureSetsWithDicomUIDs can all be used to select which structure set to export.
-        # The lists are merged so if they point to the same structure set, only one DICOM RT Structure Set will be exported.
-        # PhysicalBeamSetDoseForBeamSets: Type=Plan tilsvarer dose for the entire beam set (lest av fra eksportvindu).
-        # EffectiveBeamSetDoseForBeamSets resulterer i feilmelding
-        # PhysicalBeamDosesForBeamSets: Type = Beam tilsvarer all beam doses (lest av fra eksportvindu)
-        # EffectiveBeamDosesForBeamSets resulterer i feilmelding
-
-
         result = case.ScriptableDicomExport(ExportFolderPath=destination,
                                             Examinations=[examination.Name for examination in examinations],
                                             RtStructureSetsForExaminations=[examination.Name for examination in
                                                                             examinations],
                                             # This exports the structure set that contains all structures for the examination. It will always be the SubStructureSet where IsDefault == True (it will always be unapproved)
-                                            #RtStructureSetsReferencedFromBeamSets=beamsets, # This exports the structure set linked to beam_set
-                                            #RtStructureSetsWithDicomUIDs = [structure_set.SubStructureSets[0].ModificationInfo.DicomUID], # This exports the structure_set based on its UID
+                                            # RtStructureSetsReferencedFromBeamSets=beamsets, # This exports the structure set linked to beam_set
+                                            # RtStructureSetsWithDicomUIDs = [structure_set.SubStructureSets[0].ModificationInfo.DicomUID], # This exports the structure_set based on its UID
                                             BeamSets=beamsets,
                                             PhysicalBeamSetDoseForBeamSets=beamsets,
-                                            #EffectiveBeamSetDoseForBeamSets=beamsets,
+                                            # EffectiveBeamSetDoseForBeamSets=beamsets,
                                             PhysicalBeamDosesForBeamSets=beamsets,
-                                            #EffectiveBeamDosesForBeamSets=beamsets,
+                                            # EffectiveBeamDosesForBeamSets=beamsets,
                                             SpatialRegistrationForExaminations=[
                                                 "%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for
                                                 i in range(len(from_examinations))],
-                                            #DeformableSpatialRegistrationsForExaminations = ["%s:%s:%s"%(def_registration.InStructureRegistrationGroup.Name,
+                                            # DeformableSpatialRegistrationsForExaminations = ["%s:%s:%s"%(def_registration.InStructureRegistrationGroup.Name,
                                             #                                                             def_registration.FromExamination.Name,
                                             #                                                             def_registration.ToExamination.Name)],
                                             # TreatmentBeamDrrImages = [beam_set.BeamSetIdentifier()],
                                             # SetupBeamDrrImages = [beam_set.BeamSetIdentifier()],
                                             DicomFilter="",
-                                            IgnorePreConditionWarnings=False
+                                            IgnorePreConditionWarnings=True
                                             )
 
-        # It is important to read the result event if the script was successful.
-        # This gives the user a chance to see possible warnings that were ignored, if for
-        # example the IgnorePreConditionWarnings was set to True by mistake. The result
-        # also contains other notifications the user should read.
+        # It is very important to read the result event if the script was successful.
+        # This gives the user a chance to see any warnings that have been ignored.
         LogCompleted(result)
+        errormessage += "\n Succesfull export"
 
-    except System.InvalidOperationException as error:
-
-        LogWarning(error)
-
-        print("\nTrying to export again with IgnorePreConditionWarnings=True\n")
-
+    except Exception as e:
+        print("Unsuccesfull Export")
+        print('Except %s' % e)
+        errormessage += "\n%s" %e
+        errormessage += "\nExporting only examinations"
+        print("Exporting only examinations")
+        beamsets = []
         try:
-
             result = case.ScriptableDicomExport(ExportFolderPath=destination,
                                                 Examinations=[examination.Name for examination in examinations],
                                                 RtStructureSetsForExaminations=[examination.Name for examination in
@@ -215,7 +205,8 @@ def Export(destination, case, beamsets):
                                                 PhysicalBeamDosesForBeamSets=beamsets,
                                                 # EffectiveBeamDosesForBeamSets=beamsets,
                                                 SpatialRegistrationForExaminations=[
-                                                    "%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for
+                                                    "%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name)
+                                                    for
                                                     i in range(len(from_examinations))],
                                                 # DeformableSpatialRegistrationsForExaminations = ["%s:%s:%s"%(def_registration.InStructureRegistrationGroup.Name,
                                                 #                                                             def_registration.FromExamination.Name,
@@ -225,16 +216,11 @@ def Export(destination, case, beamsets):
                                                 DicomFilter="",
                                                 IgnorePreConditionWarnings=True
                                                 )
+            errormessage += "\nSuccessfully exported examinations"
 
-            # It is very important to read the result event if the script was successful.
-            # This gives the user a chance to see any warnings that have been ignored.
-            LogCompleted(result)
+
         except:
-            print("Unsuccesfull Export")
-
-
-    except Exception as e:
-        print('Except %s' % e)
-
+            print("Could not export examinations")
+            errormessage += "\nCould not export examinations"
 
     return errormessage
