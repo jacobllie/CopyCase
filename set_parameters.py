@@ -66,6 +66,8 @@ def set_parameters_func(Progress, initials, importfolder, patient, case):
 
     case = patient.Cases[most_current_case]
 
+    #case.SetCurrent()
+
     if "Kopiert Case" in case.CaseName:
         # If we are already on a copied case we should not change its name
         pass

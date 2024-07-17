@@ -182,7 +182,7 @@ def Export(destination, case, beamsets):
         # It is very important to read the result event if the script was successful.
         # This gives the user a chance to see any warnings that have been ignored.
         LogCompleted(result)
-        errormessage += "\n Succesfull export"
+        errormessage += "\nSuccesfull export"
 
     except Exception as e:
         print("Unsuccesfull Export")

@@ -59,13 +59,13 @@ class GUI:
                                                                                                           sticky="w")
         f1 = tk.Frame(self.root)
         f1.grid(row=2, columnspan=3)
-        alle = tk.Button(f1, text="Velg alle", command=self.choose_all).grid(row=1, column=0, padx=10)
-        hjelp = tk.Button(f1, text="Hjelp",command=self.help).grid(row=1,column=1)
+        alle = tk.Button(f1, text="Velg alle", width=10,command=self.choose_all, font=("Helvetica", 10)).grid(row=1, column=0, padx=10)
+        hjelp = tk.Button(f1, text="Hjelp",width=10, command=self.help,font=("Helvetica", 10)).grid(row=1,column=1)
 
         f2 = tk.Frame(self.root)
         f2.grid(row=9,columnspan=2)
-        ok = tk.Button(f2, text="OK", command=self.show_selected_options).grid(row=0, column=0,padx=5)
-        lukk = tk.Button(f2, text="Lukk", command=self.close_window).grid(row=0, column=1)
+        ok = tk.Button(f2, text="OK", width=10,command=self.show_selected_options, font=("Helvetica", 10)).grid(row=0, column=0,padx=15)
+        lukk = tk.Button(f2, text="Lukk", width=10,command=self.close_window, font=("Helvetica", 10)).grid(row=0, column=2, padx=15)
 
         # Bind the Return key event to the show_selected_options method
         self.root.bind("<Return>", self.show_selected_options)
@@ -152,25 +152,28 @@ class INFOBOX():
         self.ok = tk.BooleanVar()
         self.create_widgets()
         self.root.focus_force()
-        #root.geometry("350x150+10+10")
+
+
     def create_widgets(self):
+        # i dont know why this needs to be here, but it has to
+        #self.root.columnconfigure(0, weight=1)
+        #self.root.rowconfigure(0, weight=1)
 
         frame = tk.Frame(self.root)
-        #frame.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-        frame.grid(row=0,column=0)
+        frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+        # i dont know why this needs to be here, but it has to
+        frame.columnconfigure(0, weight=1)
 
         lbl = tk.Label(frame, text=self.title, fg='black', font=("Helvetica", 10, "bold"))
-        lbl.grid(row=0, column=0,columnspan=2)
-        lbl = tk.Label(frame, text=self.message, fg='black', font=("Helvetica", 10), justify="left")
-        lbl.grid(row=1,column=0,columnspan=2)
-        btn = tk.Button(frame, text="OK", command=self.confirm)
-        btn.grid(row=3,column=0,columnspan=2,pady=10)
-        #tk.Label(self.root, text=message).grid(row=0, columnspan=2, pady=10)
-        #tk.Button(self.root, text="OK", command=self.confirm).grid(row=2, column=1)
+        lbl.grid(row=0, column=0,columnspan=2, pady=0,sticky="nsew")
+        lbl = tk.Label(frame, text=self.message, fg='black', font=("Helvetica", 10))
+        lbl.grid(row=1,column=0,columnspan=2,pady=5,sticky="nsew")
+        btn = tk.Button(frame, text="OK", width=10,command=self.confirm, font=("Helvetica", 10, "bold"))
+        btn.grid(row=3,column=0,columnspan=2,pady=(5,0))
         self.root.bind("<Return>", self.confirm)
         self.root.bind("<Escape>", self.cancel)
-        # Create a button to trigger the message box
-        #ok_button.pack(padx=20, pady=10)
+
 
     def confirm(self, event=None):
         self.ok.set(True)

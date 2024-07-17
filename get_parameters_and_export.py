@@ -102,13 +102,11 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     # We are also checking if the plan has a beamset
     #plans_without_deprecated_machine = [p.BeamSets[0].MachineReference.CommissioningTime in commission_times for p in case.TreatmentPlans
     #                                    if p.BeamSets]
-    plans_with_beam_and_without_deprecated_machine = [p for p in case.TreatmentPlans if p.BeamSets
-                                        and p.BeamSets[0].MachineReference.CommissioningTime in commission_times]
+    plans_with_beam = [p for p in case.TreatmentPlans if p.BeamSets]
 
-
-    if len(plans_with_beam_and_without_deprecated_machine) == 0:
-        print("There are no plans with both a beamset, and valid doses.")
-        error += "\nThere are no plans with both a beamset, and valid doses."
+    if len(plans_with_beam) == 0:
+        print("There are no plans with both a beamset.")
+        error += "\nThere are no plans with both a beamset."
         examination_with_external = [e for e in case.Examinations if e.EquipmentInfo.Modality == "CT" and
                        "External" in dir(case.PatientModel.StructureSets[e.Name].RoiGeometries) and
                        case.PatientModel.StructureSets[e.Name].RoiGeometries["External"].HasContours()]
@@ -129,20 +127,14 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         else:
             derived_roi_status = None
 
-
     #Looping trough plans
     exported_plans = []
     approved = False
     imported = False
-    for i, plan in enumerate(plans_with_beam_and_without_deprecated_machine):#enumerate(case.TreatmentPlans):
+    for i, plan in enumerate(plans_with_beam):#enumerate(case.TreatmentPlans):
 
         """Performing plan sanity check: Is the plan approved, is it imported, does it have clinical doses. All things
                 required for scriptable dicom export"""
-
-        # We are checking this in
-        # If plan doesnt have any beamsets
-        # if len(plan.BeamSets) < 1:
-        #    continue
 
         # If the have beams with non-zero MU
         if not all([True if beam.BeamMU > 0 else False for beam in plan.BeamSets[0].Beams]):
@@ -183,78 +175,78 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         # In 12A the nonexistent objects are Null and cannot be extracted
         # This approach will work for both
         dose_computed = None
-        try:
-            if plan.TreatmentCourse.TotalDose.DoseValues:
-                # Removing potential missing dose statistics
-                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
-                dose_computed = True
-
-            else:
-                # Dose does not exist and needs to be recalculated
-                plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
-                                             RunEntryValidation=True)
-                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
-                dose_computed = True
-        except:
+        if plan.BeamSets[0].MachineReference.CommissioningTime not in commission_times:
+            error += "\n{} has deprecated machine".format(plan.Name)
+        else:
             try:
-                print("No doses")
-                # Dose does not exist and needs to be recalculated
-                plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
-                                             RunEntryValidation=True)
-                plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
-                dose_computed = True
+                if plan.TreatmentCourse.TotalDose.DoseValues:
+                    # Removing potential missing dose statistics
+                    plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                    dose_computed = True
+
+                else:
+                    # Dose does not exist and needs to be recalculated
+                    plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
+                                                 RunEntryValidation=True)
+                    plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                    dose_computed = True
             except:
-                # Dose could not be recomputed, skip plan
-                print("Could not recompute dose")
-                dose_computed = False
+                try:
+                    print("No doses")
+                    # Dose does not exist and needs to be recalculated
+                    plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose", ForceRecompute=False,
+                                                 RunEntryValidation=True)
+                    plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
+                    dose_computed = True
+                except:
+                    # Dose could not be recomputed, skip plan
+                    print("Could not recompute dose")
+                    dose_computed = False
 
-        if dose_computed:
-            # It is only necessary to gather clinical goals and objectives from plans with computed doses (which are exported)
+        """Getting clinical goals and optimization objectives from plan with commissioned machine"""
 
-            """Getting clinical goals and optimization objectives from plan with commissioned machine"""
+        PlanOptimization = plan.PlanOptimizations[0]
+        arguments = []
+        # List to hold arg_dicts of all functions.
+        # dictionary that holds the clinical goal objectives
+        clinical_goals[plan] = {}
 
-            PlanOptimization = plan.PlanOptimizations[0]
-            arguments = []
-            # List to hold arg_dicts of all functions.
-            # dictionary that holds the clinical goal objectives
-            clinical_goals[plan] = {}
-
-            # Get arguments from objective functions.
-            if PlanOptimization.Objective != None:
-                for ConstFunction in PlanOptimization.Objective.ConstituentFunctions:
-                    arg_dict = get_arguments_from_function(ConstFunction)
-                    arg_dict['IsConstraint'] = False
-                    arguments.append(arg_dict)
-
-            # Get arguments from constraint functions.
-            for Constraint in PlanOptimization.Constraints:
-                arg_dict = get_arguments_from_function(Constraint)
-                arg_dict['IsConstraint'] = True
+        # Get arguments from objective functions.
+        if PlanOptimization.Objective != None:
+            for ConstFunction in PlanOptimization.Objective.ConstituentFunctions:
+                arg_dict = get_arguments_from_function(ConstFunction)
+                arg_dict['IsConstraint'] = False
                 arguments.append(arg_dict)
-            # Accessing evaluation functions
-            eval_functions = plan.TreatmentCourse.EvaluationSetup.EvaluationFunctions
 
-            for i, ef in enumerate(eval_functions):
-                # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-                planning_goals = ef.PlanningGoal
-                clinical_goals[plan][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria, planning_goals.Type,
-                                           planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
-                                           planning_goals.Priority]
+        # Get arguments from constraint functions.
+        for Constraint in PlanOptimization.Constraints:
+            arg_dict = get_arguments_from_function(Constraint)
+            arg_dict['IsConstraint'] = True
+            arguments.append(arg_dict)
+        # Accessing evaluation functions
+        eval_functions = plan.TreatmentCourse.EvaluationSetup.EvaluationFunctions
 
-            # Saving each plan with the CT study names
-            # with open(os.path.join(destination,'{}_{}_planningCTs.json'.format(initials, plan.Name.replace("/","V"))), 'w') as f:
-            #    json.dump(planning_CTs, f)
+        for i, ef in enumerate(eval_functions):
+            # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
+            planning_goals = ef.PlanningGoal
+            clinical_goals[plan][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria, planning_goals.Type,
+                                       planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
+                                       planning_goals.Priority]
 
-            # Saving clinical goals
-            # Replace / with V in filename
-            with open(os.path.join(destination, '{}_{}_ClinicalGoals.json'.format(initials, plan.Name.replace("/", "Y"))),
-                      'w') as f:
-                json.dump(clinical_goals[plan], f)
+        # Saving each plan with the CT study names
+        # with open(os.path.join(destination,'{}_{}_planningCTs.json'.format(initials, plan.Name.replace("/","V"))), 'w') as f:
+        #    json.dump(planning_CTs, f)
 
-            # Saving objectives
-            with open(os.path.join(destination, '{}_{}_objectives.json'.format(initials, plan.Name.replace("/", "Y"))),
-                      'w') as f:
-                json.dump(arguments, f)
+        # Saving clinical goals
+        # Replace / with V in filename
+        with open(os.path.join(destination, '{}_{}_ClinicalGoals.json'.format(initials, plan.Name.replace("/", "Y"))),
+                  'w') as f:
+            json.dump(clinical_goals[plan], f)
+
+        # Saving objectives
+        with open(os.path.join(destination, '{}_{}_objectives.json'.format(initials, plan.Name.replace("/", "Y"))),
+                  'w') as f:
+            json.dump(arguments, f)
 
         if not dose_computed:
             error += "\nCan't compute doses for {}".format(plan.Name)
@@ -304,14 +296,11 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     #Saving changes before export
     patient.Save()
 
-    if export_files and not approved and not imported:
-        exporterror = Export(destination, case, beamsets)
-        if exporterror:
-            error += "\n"+exporterror
-            #return error
-
     #Endrer navnet tilbake til det opprinnelige
     if export_files:
+        exporterror = Export(destination, case, beamsets)
+        if exporterror:
+            error += "\n" + exporterror
         for plan in exported_plans:
             try:
                 plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
