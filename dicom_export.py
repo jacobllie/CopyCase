@@ -58,17 +58,18 @@ def Export(destination, case, beamsets):
     """
     print("Exporting")
 
-    #Alle examinations blir eksportert uavhengig om den har en plan som ikke er eksportert.
-    examinations = case.Examinations
+    #må fjerne eventuelle corrected cbct og virtuelle ct for de kan ikke eksporteres. Har ingen bedre måte å identifisere
+    # non clinical examinations på
+    examinations = [exam for exam in case.Examinations if "AlgorithmVersion" not in dir(exam)]
     print(case.CaseName)
 
-    errormessage = ""
+    errormessage = []
     to_examinations = []
     from_examinations = []
     try:
-        for i, registration in enumerate(case.Registrations):
-            # Skipping invalid registrations
-            if len(registration.StructureRegistrations) < 1:
+        for i, registration in enumerate([r for r in case.Registrations]):
+            # Skipping invalid registrations which are not applicable for scriptabledicomexport
+            if len(registration.StructureRegistrations) < 1 or registration.FromFrameOfReference == registration.ToFrameOfReference:
                 print("Invalid registration found")
                 continue
             for_registration = registration
@@ -79,18 +80,24 @@ def Export(destination, case, beamsets):
             from_for = for_registration.FromFrameOfReference
 
             # Find all examinations with frame of reference that matches 'to_for'.
-            to_examinations.append([e for e in case.Examinations if e.EquipmentInfo.FrameOfReference == to_for])
+            to_examinations.append([e for e in examinations if e.EquipmentInfo.FrameOfReference == to_for])
 
             # Find all examinations with frame of reference that matches 'from_for'.
-            from_examinations.append([e for e in case.Examinations if e.EquipmentInfo.FrameOfReference == from_for])
+            from_examinations.append([e for e in examinations if e.EquipmentInfo.FrameOfReference == from_for])
+
+        # examination pairs for which the registration object shall be exported. Accounted for different lengths
+        # of to and from examinations
 
         """There might be multiple studies that might be in the same frame of reference. Therefore it is only necessary to have 
-        one registration pair for each registration. 
-        E.g. if CT1 is registered to Legeinntegning, and CT1 is in the same FOR as CT2,CT3 etc. then we will only have to export the 
-        registration of CT1 and Legeinntegning, and the others will follow."""
+                one registration pair for each registration. 
+                E.g. if CT1 is registered to Legeinntegning, and CT1 is in the same FOR as CT2,CT3 etc. then we will only have to export the 
+                registration of CT1 and Legeinntegning, and the others will follow."""
+        spatial_reg_for_exams = ["%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for
+                                            i in range(len(min([to_examinations, from_examinations], key=len)))]
 
 
-    except:
+    except Exception as e:
+        print(e)
         print("The case does not contain any registrations")
 
     #checking for invalid geometries in planning CTs
@@ -100,10 +107,6 @@ def Export(destination, case, beamsets):
 
     invalid_geometries = []
 
-    # Finn planer
-    # Finn så struktursettene til disse planene
-    # Finn så de invalide strukturene
-    # Skriv feilmelding
     for beamset in beamsets:
         print(beamsets)
         # Beamsetidentifier = "planname:beamsetname"
@@ -123,7 +126,6 @@ def Export(destination, case, beamsets):
 
         # Overridden volumer har DerivedRoiStatus = Null
 
-        # TODO: Lagre roi expression og status
         for roi in structureset.RoiGeometries:
             # Det er bare derived Rois som blir invalid
             if roi.OfRoi.DerivedRoiExpression:
@@ -132,8 +134,8 @@ def Export(destination, case, beamsets):
                     if roi.PrimaryShape.DerivedRoiStatus:
                         # red volumes have dirty shape
                         if roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty:
-                            errormessage += "\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
-                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)
+                            errormessage.extend(["\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
+                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)])
                             print("Invalid Roi ({}) found in plan-CT: {}\noverride or underive"
                                   .format(roi.OfRoi.Name, examination.Name))
                             # Fjerner plan med ugyldige volumer
@@ -144,14 +146,12 @@ def Export(destination, case, beamsets):
                         continue
                 # tomme ugyldige derived rois
                 else:
-                    errormessage += "\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
-                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)
+                    errormessage.extend(["\nInvalid Roi ({}) found in plan-CT: {}\n{} was not exported\n" \
+                                            "override or underive".format(roi.OfRoi.Name, examination.Name,plan)])
                     print("Invalid Roi ({}) found in plan-CT: {}\noverride or underive"
                           .format(roi.OfRoi.Name, examination.Name))
                     beamsets.remove(beamset)
                     break
-
-
 
     try:
 
@@ -167,9 +167,7 @@ def Export(destination, case, beamsets):
                                             # EffectiveBeamSetDoseForBeamSets=beamsets,
                                             PhysicalBeamDosesForBeamSets=beamsets,
                                             # EffectiveBeamDosesForBeamSets=beamsets,
-                                            SpatialRegistrationForExaminations=[
-                                                "%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name) for
-                                                i in range(len(from_examinations))],
+                                            SpatialRegistrationForExaminations=spatial_reg_for_exams,
                                             # DeformableSpatialRegistrationsForExaminations = ["%s:%s:%s"%(def_registration.InStructureRegistrationGroup.Name,
                                             #                                                             def_registration.FromExamination.Name,
                                             #                                                             def_registration.ToExamination.Name)],
@@ -182,13 +180,15 @@ def Export(destination, case, beamsets):
         # It is very important to read the result event if the script was successful.
         # This gives the user a chance to see any warnings that have been ignored.
         LogCompleted(result)
-        errormessage += "\nSuccesfull export"
+        errormessage.extend(["\nSuccesfull export"])
 
     except Exception as e:
         print("Unsuccesfull Export")
-        print('Except %s' % e)
-        errormessage += "\n%s" %e
-        errormessage += "\nExporting only examinations"
+
+        error = str(e).split("--- End of inner exception stack trace ---")[0]
+        # we need to split up the errormessage
+        errormessage.extend(["\n\n%s" %error])
+        errormessage.extend(["\nExporting only examinations"])
         print("Exporting only examinations")
         beamsets = []
         try:
@@ -204,10 +204,7 @@ def Export(destination, case, beamsets):
                                                 # EffectiveBeamSetDoseForBeamSets=beamsets,
                                                 PhysicalBeamDosesForBeamSets=beamsets,
                                                 # EffectiveBeamDosesForBeamSets=beamsets,
-                                                SpatialRegistrationForExaminations=[
-                                                    "%s:%s" % (from_examinations[i][0].Name, to_examinations[i][0].Name)
-                                                    for
-                                                    i in range(len(from_examinations))],
+                                                SpatialRegistrationForExaminations=spatial_reg_for_exams,
                                                 # DeformableSpatialRegistrationsForExaminations = ["%s:%s:%s"%(def_registration.InStructureRegistrationGroup.Name,
                                                 #                                                             def_registration.FromExamination.Name,
                                                 #                                                             def_registration.ToExamination.Name)],
@@ -216,11 +213,11 @@ def Export(destination, case, beamsets):
                                                 DicomFilter="",
                                                 IgnorePreConditionWarnings=True
                                                 )
-            errormessage += "\nSuccessfully exported examinations"
+            errormessage.append("\nSuccessfully exported examinations")
 
 
         except:
             print("Could not export examinations")
-            errormessage += "\nCould not export examinations"
+            errormessage.append("\nCould not export examinations")
 
     return errormessage

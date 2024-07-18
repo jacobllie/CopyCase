@@ -30,7 +30,7 @@ def copycase():
     #root.withdraw()
     root.mainloop()
 
-    get_parameters, export_files, import_files, set_parameters, delete_files = app.options_list
+    get_parameters, get_derived_rois, export_files, import_files, set_parameters, delete_files = app.options_list
 
 
     print(delete_files, get_parameters, export_files, import_files, set_parameters)
@@ -80,11 +80,13 @@ def copycase():
     importfolder = destination
 
     if get_parameters:
-        error = get_parameters_and_export(initials, destination, patient, case, export_files=export_files)
+        error = get_parameters_and_export(initials, destination, patient, case, export_files=export_files,
+                                          get_derived_rois=get_derived_rois)
         if error:
-            msg = tk.Tk()
-            app = INFOBOX(msg, "Error", error)
-            msg.mainloop()
+            root = tk.Tk()
+            # flattening the error, which is a list of list
+            app = INFOBOX(root, "Error", error)
+            root.mainloop()
             error = None
         if not export_files:
             if get_parameters and not export_files:
@@ -99,9 +101,9 @@ def copycase():
             # Import ans set parameters is the work function
             # We need to call the update progress function inside the work function
             if import_files and not set_parameters:
-                import_error = Import(importfolder, patient)
+                Import(importfolder, patient)
             if set_parameters and import_files:
-                import_error = Import(importfolder, patient)
+                Import(importfolder, patient)
                 error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
                 error = set_parameters_func(app, initials, importfolder, patient, case)
@@ -112,15 +114,14 @@ def copycase():
             prog = tk.Tk()
             app = ProgressBar(prog)
             if import_files and not set_parameters:
-                import_error = Import(importfolder, patient)
+                Import(importfolder, patient)
             if set_parameters and import_files:
-                import_error = Import(importfolder, patient)
+                Import(importfolder, patient)
                 error = set_parameters_func(app, initials, importfolder, patient, case)
             if set_parameters and not import_files:
                 error = set_parameters_func(app, initials, importfolder, patient, case)
             #prog.mainloop()
 
-    # TODO: Håndter flere potensielle errormessages
     if error != "" and error != None:
         msg = tk.Tk()
         options = error.split("\n")
