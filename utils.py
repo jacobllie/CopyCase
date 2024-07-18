@@ -119,7 +119,7 @@ def save_derived_roi_expressions(case, derived_rois):
                 derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
                 derived_roi_expressions[roi]["A rois"] = dependent_rois
             else:
-                derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
+                derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = False
                 operation = 0
                 operation = loop_derived_roi_expression(expression.Children, operation)
                 save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
@@ -155,7 +155,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
     :param derived_roi_status:
     :return:
     """
-    error = "Could not generate roi algebra for:"
+    error = ["Could not generate roi algebra for:"]
     succesfull = []
     derived_rois = [r for r in case.PatientModel.RegionsOfInterest if r.Name in derived_roi_expression]
     for i, roi in enumerate(derived_rois):
@@ -280,7 +280,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 if roi.Name in error:
                     pass
                 else:
-                    error += "\n{}".format(roi.Name)
+                    error.extend(["\n{}".format(roi.Name)])
     if all(succesfull):
         error = ""
     i = 0
@@ -303,6 +303,6 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 if roi.Name in error:
                     pass
                 else:
-                    error += "\n{}".format(roi.Name)
+                    error.extend(["\n{}".format(roi.Name)])
     return error
 

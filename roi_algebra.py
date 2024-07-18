@@ -126,7 +126,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
             if roi.Name in error:
                 pass
             else:
-                error += "\n{}".format(roi.Name)
+                error.extend(["\n{}".format(roi.Name)])
     if all(succesfull):
         error = ""
     i = 0
@@ -149,5 +149,5 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 if roi.Name in error:
                     pass
                 else:
-                    error += "\n{}".format(roi.Name)
+                    error.extend(["\n{}".format(roi.Name)])
     return error

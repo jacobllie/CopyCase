@@ -15,7 +15,7 @@ from GUI import INFOBOX
 from utils import save_derived_roi_expressions, save_derived_roi_status
 
 
-def get_parameters_and_export(initials, destination, patient, case, export_files=True):
+def get_parameters_and_export(initials, destination, patient, case, export_files=True, get_derived_rois=True):
     """
     Function that extracts isodose colortable, imaging scan names,
     optimization objectives, clinical goals and plan CT names and
@@ -27,7 +27,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     :return: None
     """
 
-    error = ""
+    error = []
 
     #Including all ROIs for export and extracting derived roi expression
     ROIs = []
@@ -53,34 +53,12 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     with open(os.path.join(destination,'{}_StudyNames.json'.format(initials)), 'w') as f:
         json.dump(examination_names, f)
 
-
-    """Tror ikke vi kommer til å loope gjennom alle struktursett for å hente ut derived roi expression, det tar lang tid.
-    Jeg tror heller vi fokuserer på struktursett koblet til planer
-    # Saving derived roi expression and derived roi status of each roi in each structureset
-    derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
-    derived_rois_dict = {}
-    start = time.time()
-    for structureset in case.PatientModel.StructureSets:
-        derived_rois_dict[structureset.OnExamination.Name] = {}
-        #only looping through derived ROIs
-        for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
-            expression = case.PatientModel.RegionsOfInterest[roi.OfRoi.Name].DerivedRoiExpression
-            if roi.PrimaryShape:
-                status = roi.PrimaryShape.DerivedRoiStatus
-            else:
-                status = None
-
-            derived_rois_dict[structureset.OnExamination.Name][roi.OfRoi.Name] = (expression, status)
-
-    print("elapsed time")
-    print(time.time() - start)
-
-    print(derived_rois_dict)
-    """
-
     clinical_goals = {}
     beamsets = []
     isocenter_names = {}
+
+    # TODO: Håndter derived rois på en smoothere måte med mindre if statements
+
     derived_rois_dict = {}
     derived_rois = [roi.Name for roi in case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
     derived_roi_geometries = {}
@@ -88,11 +66,12 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
     # Getting derived roi expressions
 
-    derived_rois_dict = save_derived_roi_expressions(case, derived_rois)
+    if get_derived_rois:
+        derived_rois_dict = save_derived_roi_expressions(case, derived_rois)
 
     derived_roi_status = {}
 
-    print(derived_rois_dict)
+
 
     machine_db = connect.get_current("MachineDB")
     commisioned_machines = machine_db.QueryCommissionedMachineInfo(Filter = {'IsLinac':True})
@@ -106,24 +85,28 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
     if len(plans_with_beam) == 0:
         print("There are no plans with both a beamset.")
-        error += "\nThere are no plans with both a beamset."
+        error.extend(["\nThere are no plans with both a beamset."])
         examination_with_external = [e for e in case.Examinations if e.EquipmentInfo.Modality == "CT" and
                        "External" in dir(case.PatientModel.StructureSets[e.Name].RoiGeometries) and
                        case.PatientModel.StructureSets[e.Name].RoiGeometries["External"].HasContours()]
 
-        if len(examination_with_external) > 0:
-            # If we have a CT study with external, we will update the derived roi status on this one
-            derived_roi_status[examination_with_external[0].Name] = {}
-            for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
-                # all derived rois have primary shape
-                if roi.PrimaryShape.DerivedRoiStatus:
-                    # red volumes have dirty shape
-                    status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
-                # non empty overriden rois
-                else:
-                    status = -1
+        # if the user has opted out of getting derived rois
+        if get_derived_rois:
+            if len(examination_with_external) > 0:
+                # If we have a CT study with external, we will update the derived roi status on this one
+                derived_roi_status[examination_with_external[0].Name] = {}
+                for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
+                    # all derived rois have primary shape
+                    if roi.PrimaryShape.DerivedRoiStatus:
+                        # red volumes have dirty shape
+                        status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
+                    # non empty overriden rois
+                    else:
+                        status = -1
 
-                derived_roi_status[examination.Name][roi.OfRoi.Name] = status
+                    derived_roi_status[examination.Name][roi.OfRoi.Name] = status
+            else:
+                derived_roi_status = None
         else:
             derived_roi_status = None
 
@@ -138,7 +121,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
 
         # If the have beams with non-zero MU
         if not all([True if beam.BeamMU > 0 else False for beam in plan.BeamSets[0].Beams]):
-            error += "\n{} has beams with non-zero MU".format(plan.Name)
+            error.extend(["\n{} has beams with non-zero MU".format(plan.Name)])
             print("{} has beams with non-zero MU".format(plan.Name))
             continue
 
@@ -165,10 +148,10 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
             print("No comment in plan")
 
         if approved:
-            error += "\n{} is approved".format(plan.Name)
+            error.extend(["\n{} is approved".format(plan.Name)])
         if imported:
-            error += "\n{} has \"is imported\" in plan comment. If it is imported recalculate doses and remove the comment".format(
-                plan.Name)
+            error.extend(["\n{} has \"is imported\" in plan comment. If it is imported recalculate doses and remove the comment".format(
+                plan.Name)])
 
 
         # In 2023B Eval the nonexistent objects are None
@@ -176,7 +159,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
         # This approach will work for both
         dose_computed = None
         if plan.BeamSets[0].MachineReference.CommissioningTime not in commission_times:
-            error += "\n{} has deprecated machine".format(plan.Name)
+            error.extend(["\n{} has deprecated machine".format(plan.Name)])
         else:
             try:
                 if plan.TreatmentCourse.TotalDose.DoseValues:
@@ -249,7 +232,7 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
             json.dump(arguments, f)
 
         if not dose_computed:
-            error += "\nCan't compute doses for {}".format(plan.Name)
+            error.extend(["\nCan't compute doses for {}".format(plan.Name)])
 
         """Getting plan structureset derived roi expressions and status"""
 
@@ -260,10 +243,15 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
                     set parameters."""
         planning_CTs[plan.Name] = examination.Name
         print(examination.Name)
-        derived_roi_status[examination.Name] = {}
 
-        derived_roi_status[examination.Name] = save_derived_roi_status(structureset, derived_rois,
-                                                                       derived_roi_status[examination.Name])
+        if get_derived_rois:
+            derived_roi_status[examination.Name] = {}
+            derived_roi_status[examination.Name] = save_derived_roi_status(structureset, derived_rois,
+                                                                           derived_roi_status[examination.Name])
+
+            # saving derived roi expressions and derived roi geometry statuses
+            with open(os.path.join(destination, '{}_derived_roi_dict.json'.format(initials)), 'w') as f:
+                json.dump(derived_rois_dict, f)
 
         if dose_computed and not approved and not imported:
             isocenter_names[plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
@@ -273,12 +261,6 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
                 plan.Name = plan.Name.replace(":", "X").replace("/", "Y")
                 beamsets.append("%s:%s" % (plan.Name, plan.BeamSets[0].DicomPlanLabel))
                 exported_plans.append(plan)
-
-
-
-    # saving derived roi expressions and derived roi geometry statuses
-    with open(os.path.join(destination, '{}_derived_roi_dict.json'.format(initials)), 'w') as f:
-        json.dump(derived_rois_dict, f)
 
     if derived_roi_status:
         with open(os.path.join(destination, '{}_derived_roi_status.json'.format(initials)), 'w') as f:
@@ -297,22 +279,16 @@ def get_parameters_and_export(initials, destination, patient, case, export_files
     patient.Save()
 
     #Endrer navnet tilbake til det opprinnelige
+
     if export_files:
         exporterror = Export(destination, case, beamsets)
-        if exporterror:
-            error += "\n" + exporterror
+        error.extend(exporterror)
         for plan in exported_plans:
             try:
                 plan.Name = plan.Name.replace("X", ":").replace("Y", "/")
             except:
                 print("Could not change plan name")
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
-
-    """if error != "":
-        msg = tk.Toplevel()
-        app = INFOBOX(msg, "Error", error)
-        msg.lift()
-        msg.mainloop()"""
 
     patient.Save()
 

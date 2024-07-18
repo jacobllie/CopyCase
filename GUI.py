@@ -14,13 +14,13 @@ class GUI:
         self.root.title("Kopier Case")
 
         self.get_parameters_var = tk.BooleanVar()
+        self.derived_rois_var = tk.BooleanVar()
         self.export_var = tk.BooleanVar()
         self.import_var = tk.BooleanVar()
         self.set_parameters_var = tk.BooleanVar()
         self.delete_files = tk.BooleanVar()
 
         self.create_widgets()
-
 
     def create_widgets(self):
         """tk.Label(self.root, text="Select Options:").grid(row=0, columnspan=2, pady=5)
@@ -49,12 +49,16 @@ class GUI:
                                                                                                         sticky="w")
         tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
                        variable=self.get_parameters_var).grid(row=4, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var).grid(
-            row=5, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=6,
+
+        tk.Checkbutton(self.root, text="-Hent regler for utledede ROIer",
+                       variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=5, column=0, sticky="nw", padx=(50, 0))
+
+        tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var,
+                       command=self.handle_export_but_no_get_parameters).grid(row=6, column=0, sticky="w")
+        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=7,
                                                                                                              column=0,
                                                                                                              sticky="w")
-        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=7,
+        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=8,
                                                                                                           column=0,
                                                                                                           sticky="w")
         f1 = tk.Frame(self.root)
@@ -71,6 +75,15 @@ class GUI:
         self.root.bind("<Return>", self.show_selected_options)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
+    def get_parameters_subcheck(self, event=None):
+        if self.derived_rois_var.get():
+            self.get_parameters_var.set(True)
+
+    def handle_export_but_no_get_parameters(self, event=None):
+        # The user cannot ask for export, but not get parameters. That does not work. The user can however,
+        # ask for import but not set parameters
+        if self.export_var.get() and not self.get_parameters_var.get():
+            self.get_parameters_var.set(1)
 
     def on_close(self):
         self.root.destroy()
@@ -79,6 +92,7 @@ class GUI:
     def show_selected_options(self, event=None):
         options = {
             "Get Parameters": self.get_parameters_var.get(),
+            "Get derived roi expressions": self.derived_rois_var,
             "Export": self.export_var.get(),
             "Import": self.import_var.get(),
             "Set Parameters": self.set_parameters_var.get(),
@@ -86,6 +100,7 @@ class GUI:
         }
 
         GUI.options_list = [self.get_parameters_var.get(),
+                            self.derived_rois_var.get(),
                             self.export_var.get(),
                             self.import_var.get(),
                             self.set_parameters_var.get(),
@@ -101,8 +116,6 @@ class GUI:
             print("No Selection", "Please select at least one option.")
 
         self.root.destroy()
-
-    # TODO: Dersom get parameters but not export is chosen, tell the user to manually export everything to correct folder
 
     def choose_all(self):
         self.delete_files.set(True)
@@ -142,11 +155,10 @@ class GUI:
         sys.exit()
 
 
-class INFOBOX():
+class INFOBOX:
     def __init__(self, root, title, message):
         self.root = root
-
-        self.message = message
+        self.message = message # list of
         self.title = title
         root.title(self.title)
         self.ok = tk.BooleanVar()
@@ -164,11 +176,26 @@ class INFOBOX():
 
         # i dont know why this needs to be here, but it has to
         frame.columnconfigure(0, weight=1)
+        print(len(max(self.message)))
 
         lbl = tk.Label(frame, text=self.title, fg='black', font=("Helvetica", 10, "bold"))
         lbl.grid(row=0, column=0,columnspan=2, pady=0,sticky="nsew")
-        lbl = tk.Label(frame, text=self.message, fg='black', font=("Helvetica", 10))
-        lbl.grid(row=1,column=0,columnspan=2,pady=5,sticky="nsew")
+
+        #lbl = tk.Label(frame, text=self.message, wraplength=380, justify="left", fg='black', font=("Helvetica", 10))
+        #lbl.grid(row=1,column=0,columnspan=2,pady=0,sticky="nsew")
+        #lbl = tk.Text(frame, wrap="word", height=len(self.message)*10, width=len(max(self.message)))
+        lbl = tk.Text(frame, wrap="word")
+        lbl.insert("1.0", "".join(self.message))
+        lbl.config(state="disabled")  # Make the text widget read-only
+        lbl.grid(row=1,column=0,columnspan=2,pady=0,sticky="nsew")
+
+        # Create the scrollbar
+        scrollbar = ttk.Scrollbar(frame, orient="vertical", command=lbl.yview)
+        scrollbar.grid(row=1,column=3,sticky="nsew")
+
+        # Configure the Text widget to use the scrollbar
+        lbl.config(yscrollcommand=scrollbar.set)
+
         btn = tk.Button(frame, text="OK", width=10,command=self.confirm, font=("Helvetica", 10, "bold"))
         btn.grid(row=3,column=0,columnspan=2,pady=(5,0))
         self.root.bind("<Return>", self.confirm)
