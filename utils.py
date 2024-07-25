@@ -282,7 +282,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 else:
                     error.extend(["\n{}".format(roi.Name)])
     if all(succesfull):
-        error = ""
+        error = []
     i = 0
     for e in planningCT_names.values():
         print(e)
@@ -300,7 +300,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                 elif derived_roi_status[examination.Name][roi.Name] == -1:
                     pass
             except:
-                if roi.Name in error:
+                if any(roi.Name in er for er in error): #if roi.Name in error:
                     pass
                 else:
                     error.extend(["\n{}".format(roi.Name)])

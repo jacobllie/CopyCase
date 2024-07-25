@@ -61,6 +61,7 @@ def Export(destination, case, beamsets):
     #må fjerne eventuelle corrected cbct og virtuelle ct for de kan ikke eksporteres. Har ingen bedre måte å identifisere
     # non clinical examinations på
     examinations = [exam for exam in case.Examinations if "AlgorithmVersion" not in dir(exam)]
+
     print(case.CaseName)
 
     errormessage = []

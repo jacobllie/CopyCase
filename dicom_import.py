@@ -4,7 +4,7 @@ from connect import *
 import tkinter as tk
 import sys
 
-def Import(importfolder, patient):
+def Import(importfolder, patient, copy_to_case):
     """
     Function that Queries studies from path into a new case
     :param importfolder: str
@@ -33,7 +33,7 @@ def Import(importfolder, patient):
 
         # Import image series from importfolder to current patient
         # CaseName = None results in new case
-        warnings = patient.ImportDataFromPath(Path=importfolder, SeriesOrInstances=series, CaseName=None)
+        warnings = patient.ImportDataFromPath(Path=importfolder, SeriesOrInstances=series, CaseName=copy_to_case)
         print("Warnings: %s" % warnings)
     except:
           error = "Could not import, are all the files present in \n" \

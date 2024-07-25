@@ -3,15 +3,18 @@ from tkinter import ttk
 from tkinter import messagebox
 import sys
 import time
-from tkinter.messagebox import askokcancel, WARNING
+from tkinter import messagebox
 import os
 import threading
+from typing import List
+from connect import *
 
 
-class GUI:
-    def __init__(self, root):
+class mainGUI:
+    def __init__(self, root:tk.Tk, patient):
         self.root = root
         self.root.title("Kopier Case")
+        self.patient = patient
 
         self.get_parameters_var = tk.BooleanVar()
         self.derived_rois_var = tk.BooleanVar()
@@ -19,21 +22,20 @@ class GUI:
         self.import_var = tk.BooleanVar()
         self.set_parameters_var = tk.BooleanVar()
         self.delete_files = tk.BooleanVar()
+        self.copy_to_case = None
+
+        self.options_list = [self.get_parameters_var,
+                             self.derived_rois_var,
+                             self.export_var,
+                             self.import_var,
+                             self.set_parameters_var,
+                             self.delete_files,
+                             self.copy_to_case
+                             ]
 
         self.create_widgets()
 
     def create_widgets(self):
-        """tk.Label(self.root, text="Select Options:").grid(row=0, columnspan=2, pady=5)
-
-        tk.Button(self.root, text="Velg alle", command=self.choose_all).grid(row=0, column=2)
-        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=1, column=0,                                                                                                sticky="w")
-        tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)", variable=self.get_parameters_var).grid(row=2, column=0,
-                                                                                                sticky="w")
-        tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var).grid(row=3, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=4, column=0, sticky="w")
-        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=5, column=0, sticky="w")
-        tk.Button(self.root, text="OK", command=self.show_selected_options).grid(row=7, column=0,columnspan=1, pady=5)
-        tk.Button(self.root, text="Lukk", command=self.close_window).grid(row=7, column=1,columnspan=2, pady=5)"""
 
         # Add widgets to the frames
 
@@ -45,13 +47,12 @@ class GUI:
 
         tk.Label(self.root, text="Valg:").grid(row=1, column=0, columnspan=1, pady=1)
 
-        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=8, column=0,
-                                                                                                        sticky="w")
-        tk.Checkbutton(self.root, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
-                       variable=self.get_parameters_var).grid(row=4, column=0, sticky="w")
-
-        tk.Checkbutton(self.root, text="-Hent regler for utledede ROIer",
-                       variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=5, column=0, sticky="nw", padx=(50, 0))
+        f0 = tk.Frame(self.root)
+        f0.grid(row=4, column=0, sticky="w")
+        tk.Checkbutton(f0, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
+                       variable=self.get_parameters_var).grid(row=0, column=0, sticky="w")
+        tk.Checkbutton(f0, text="-Hent regler for utledede ROIer",
+                       variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=1, column=0, sticky="nw", padx=(50, 0))
 
         tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var,
                        command=self.handle_export_but_no_get_parameters).grid(row=6, column=0, sticky="w")
@@ -61,21 +62,77 @@ class GUI:
         tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=8,
                                                                                                           column=0,
                                                                                                           sticky="w")
-        f1 = tk.Frame(self.root)
-        f1.grid(row=2, columnspan=3)
-        alle = tk.Button(f1, text="Velg alle", width=10,command=self.choose_all, font=("Helvetica", 10)).grid(row=1, column=0, padx=10)
-        hjelp = tk.Button(f1, text="Hjelp",width=10, command=self.help,font=("Helvetica", 10)).grid(row=1,column=1)
 
-        f2 = tk.Frame(self.root)
-        f2.grid(row=9,columnspan=2)
-        ok = tk.Button(f2, text="OK", width=10,command=self.show_selected_options, font=("Helvetica", 10)).grid(row=0, column=0,padx=15)
-        lukk = tk.Button(f2, text="Lukk", width=10,command=self.close_window, font=("Helvetica", 10)).grid(row=0, column=2, padx=15)
+        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=9, column=0,
+                                                                                                    sticky="w")
+        self._copy_to_case_widget()
+
+        self._generate_okcancel_buttons()
+
+        self._generate_choose_all_and_help_buttons()
 
         # Bind the Return key event to the show_selected_options method
         self.root.bind("<Return>", self.show_selected_options)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
+    def _generate_choose_all_and_help_buttons(self):
+        f2 = tk.Frame(self.root)
+        f2.grid(row=2, columnspan=3)
+        alle = tk.Button(f2, text="Velg/fjern alle", width=15, command=self.choose_all, font=("Helvetica", 10)).grid(row=1,
+                                                                                                               column=0,
+                                                                                                               padx=10)
+        hjelp = tk.Button(f2, text="Hjelp", width=15, command=self.help, font=("Helvetica", 10)).grid(row=1, column=1)
+
+    def _generate_okcancel_buttons(self):
+        f3 = tk.Frame(self.root)
+        f3.grid(row=10, columnspan=2)
+        ok = tk.Button(f3, text="OK", width=10, command=self.show_selected_options, font=("Helvetica", 10)).grid(row=0,
+                                                                                                                 column=0,
+                                                                                                                 padx=15)
+        lukk = tk.Button(f3, text="Lukk", width=10, command=self.close_window, font=("Helvetica", 10)).grid(row=0,
+                                                                                                            column=2,
+                                                                                                            padx=15)
+    def _copy_to_case_widget(self):
+        f1 = tk.Frame(self.root)
+        f1.grid(row=4, column=0, padx=(400, 0))
+        tk.Label(f1, text="Kopier til et spesifikt case", font=("Helvetica", 12), justify="left").grid(row=0, column=0)
+        tk.Label(f1, text="NB. Må bare spesifiseres når case parametere hentes", font=("Helvetica",9),justify="left").\
+            grid(row=1,column=0)
+        self.scrollbar = tk.Scrollbar(f1)
+        self.scrollbar.grid(row=2, column=0, sticky="w", padx=(105, 0))
+        current_case = get_current("Case")
+        print(current_case.CaseName)
+        # we remove the currently active case, because we dont want to copy a case to itself
+        cases = [c.CaseName for c in self.patient.Cases if c.CaseName != current_case.CaseName]
+        # if there is only one case, then the width will be set to 5
+        w = max([len(c) for c in cases]) if len(cases) > 0 else 5
+        self.case_listbox = tk.Listbox(f1, yscrollcommand=self.scrollbar.set, width=w + 3,
+                                  height=5,
+                                  selectmode="Single", activestyle="none")
+        for i, c in enumerate(cases):
+            self.case_listbox.insert(tk.END, c)
+
+        self.case_listbox.grid(row=2, column=0, sticky="w")
+
+        deselect = tk.Button(f1, text="Clear", width=10, command=self._deselect_listbox, font=("Helvetica", 10)).grid(
+            row=3,
+            column=0,
+            sticky="w")
+
+        self.scrollbar.config(command=self.case_listbox.yview)
+
+
+    def _deselect_listbox(self, event=None):
+        """Deselecting the currently selected element with selection clear method"""
+        idx = self.case_listbox.curselection()
+        if len(idx) < 1:
+            return
+        self.case_listbox.selection_clear(self.case_listbox.curselection())
+
+
     def get_parameters_subcheck(self, event=None):
+        """This function ensures that if the user wants to extract derived ROIs, then the get parameters options needs
+        to be checked."""
         if self.derived_rois_var.get():
             self.get_parameters_var.set(True)
 
@@ -90,41 +147,41 @@ class GUI:
         sys.exit(0)
 
     def show_selected_options(self, event=None):
-        options = {
-            "Get Parameters": self.get_parameters_var.get(),
-            "Get derived roi expressions": self.derived_rois_var,
-            "Export": self.export_var.get(),
-            "Import": self.import_var.get(),
-            "Set Parameters": self.set_parameters_var.get(),
-            "Delete Files": self.delete_files.get()
-        }
 
-        GUI.options_list = [self.get_parameters_var.get(),
-                            self.derived_rois_var.get(),
-                            self.export_var.get(),
-                            self.import_var.get(),
-                            self.set_parameters_var.get(),
-                            self.delete_files.get()]
-
-
-        selected_options = [key for key, value in options.items() if value]
-
-        if selected_options:
-            selected_text = "\n".join(selected_options)
-            print("Selected Options", f"Selected options:\n{selected_text}")
+        idx = self.case_listbox.curselection()
+        if len(idx) > 0:
+            self.copy_to_case = self.case_listbox.get(idx)
         else:
-            print("No Selection", "Please select at least one option.")
+            self.copy_to_case = None
 
+        self.options_list = [self.get_parameters_var.get(),
+                             self.derived_rois_var.get(),
+                             self.export_var.get(),
+                             self.import_var.get(),
+                             self.set_parameters_var.get(),
+                             self.delete_files.get(),
+                             self.copy_to_case
+                             ]
+
+        # if not any of the mandatory options are chosen, which are all options except for the copy to case option,
+        # then we do nothing
+        if not any(self.options_list[:-1]):
+            print("No mandatory options chosen")
+            return
         self.root.destroy()
 
     def choose_all(self):
-        self.delete_files.set(True)
-        self.get_parameters_var.set(True)
-        self.export_var.set(True)
-        self.import_var.set(True)
-        self.set_parameters_var.set(True)
+        # if all checkboxes are checked, we deselect them
+        print(self.options_list)
+        if all([o.get() for o in self.options_list[:-1]]):
+            for c in self.options_list[:-1]:
+                c.set(0)
+        # but if not all boxes are checked, we select all of them
+        else:
+            for c in self.options_list[:-1]:
+                c.set(1)
+        pass
 
-        self.show_selected_options()
 
     def open_file(self):
         #path = 'H:\\Dokumenter\\Github\\CopyCase\\CopyCase Hjelp.docx'
@@ -156,11 +213,16 @@ class GUI:
 
 
 class INFOBOX:
-    def __init__(self, root, title, message):
+    # using type hints for easier reading
+    def __init__(self, root:tk.Tk, title: str, message: List[str]):
+
+        if not isinstance(message, list):
+            raise TypeError("Expected message in INFOBOX to be a list of strings")
+
         self.root = root
         self.message = message # list of
         self.title = title
-        root.title(self.title)
+        #root.title(self.title)
         self.ok = tk.BooleanVar()
         self.create_widgets()
         self.root.focus_force()
@@ -176,15 +238,14 @@ class INFOBOX:
 
         # i dont know why this needs to be here, but it has to
         frame.columnconfigure(0, weight=1)
-        print(len(max(self.message)))
 
         lbl = tk.Label(frame, text=self.title, fg='black', font=("Helvetica", 10, "bold"))
         lbl.grid(row=0, column=0,columnspan=2, pady=0,sticky="nsew")
 
         #lbl = tk.Label(frame, text=self.message, wraplength=380, justify="left", fg='black', font=("Helvetica", 10))
         #lbl.grid(row=1,column=0,columnspan=2,pady=0,sticky="nsew")
-        #lbl = tk.Text(frame, wrap="word", height=len(self.message)*10, width=len(max(self.message)))
-        lbl = tk.Text(frame, wrap="word")
+        lbl = tk.Text(frame, wrap="word", height=len(self.message)+5)#, width=len(max(self.message))+5)
+        #lbl = tk.Text(frame, wrap="word")
         lbl.insert("1.0", "".join(self.message))
         lbl.config(state="disabled")  # Make the text widget read-only
         lbl.grid(row=1,column=0,columnspan=2,pady=0,sticky="nsew")
@@ -211,7 +272,7 @@ class INFOBOX:
 
 
 class ProgressBar:
-    def __init__(self, root):
+    def __init__(self, root:tk.Tk):
         self.root = root
         self.root.title("Progress")
         self.root.minsize(width=300, height=100)  # Set a minimum window size
@@ -236,13 +297,13 @@ class ProgressBar:
         self.value_label = ttk.Label(self.root, text="0%")
         self.value_label.grid(column=0, row=3, columnspan=3, pady=10)
 
-    def update_plan(self, plan_number):
+    def update_plan(self, plan_number:int):
         self.plan_label.config(text=plan_number)
 
-    def update_operation(self, text):
+    def update_operation(self, text:str):
         self.operation_label.config(text=text)
 
-    def update_progress(self, iteration):
+    def update_progress(self, iteration:int):
         self.value_label.config(text="{}%".format(iteration))
         self.progress_var.set(iteration)  # Update the progress bar
         self.root.update_idletasks()  # Update the tkinter window
@@ -250,11 +311,11 @@ class ProgressBar:
     def quit(self):
         self.root.destroy()
 
-class ScrollBar(threading.Thread):
+class ScrollBar:
     def __init__(self, master, label_text, options):
         self.master = master
-        threading.Thread.__init__(self)
-        self.start()
+        #threading.Thread.__init__(self)
+        #self.start()
         self.label_text = label_text
         self.options = options
 
@@ -286,9 +347,9 @@ class ConfirmCase:
         self.confirm()
 
     def confirm(self):
-        answer = askokcancel(title="Confirmation",
+        answer = messagebox.askokcancel(title="Confirmation",
                              message="Er du sikker på at du vil sette parametere for case: {}".format(self.case),
-                             icon=WARNING)
+                             icon=messagebox.WARNING)
         if answer:
             pass
         else:
