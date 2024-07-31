@@ -51,7 +51,7 @@ class mainGUI:
         f0.grid(row=4, column=0, sticky="w")
         tk.Checkbutton(f0, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
                        variable=self.get_parameters_var).grid(row=0, column=0, sticky="w")
-        tk.Checkbutton(f0, text="-Hent regler for utledede ROIer",
+        tk.Checkbutton(f0, text="-Hent regler for utledede ROIer (eksperimentelt)",
                        variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=1, column=0, sticky="nw", padx=(50, 0))
 
         tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var,

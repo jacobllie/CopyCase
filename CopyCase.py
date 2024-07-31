@@ -10,8 +10,8 @@ from tkinter import messagebox
 
 # Import local files:
 from delete_files_and_folders import delete_files_and_folders
-from get_parameters_and_export import GET
-from set_parameters import SET
+from get_parameters_and_export import Get
+from set_parameters import Set
 from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
 from dicom_import import Import
 
@@ -83,7 +83,7 @@ def copycase():
 
     if get_parameters:
         # initialising GET class
-        get = GET(initials, destination, patient, case, export_files=export_files,
+        get = Get(initials, destination, patient, case, export_files=export_files,
                                           get_derived_rois=get_derived_rois)
         # extracting parameters and exporting if export files is true
         # merging local case parameters and get's case parameters
@@ -101,13 +101,19 @@ def copycase():
             #Message about needing to export manually
             message = "Eksporter alle planer, doser, bildeserier etc. manuelt til:{}".format(destination)
             messagebox.showinfo("INFO", message)
+
     if import_files or set_parameters:
+
+        # case_parameters should always exists if get parameters have been run before
+        tmp = json.load(open(os.path.join(destination, '{}_case_parameters.json'.format(initials))))
+        copy_to_case = tmp["copy to case"]
+
         prog = tk.Tk()
         app = ProgressBar(prog)
         if import_files:
             Import(importfolder, patient, copy_to_case)
         if set_parameters:
-            set = SET(app, initials, importfolder, patient, case)
+            set = Set(app, initials, importfolder, patient, case)
             error = set.error
 
     if error != [] and error != None:

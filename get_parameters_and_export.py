@@ -15,7 +15,7 @@ from GUI import INFOBOX
 from utils import save_derived_roi_expressions, save_derived_roi_status
 
 
-class GET:
+class Get:
     def __init__(self, initials, destination, patient, case, export_files=True, get_derived_rois=True):
         # TODO: Få denne til å funke som class og legg til alle case parameter til case_parameters
         self.initials = initials
@@ -55,19 +55,6 @@ class GET:
             self._export_files()
 
         self.patient.Save()
-
-        """# if derived_roi_status exists we save it
-        if self.get_derived_rois:
-            with open(os.path.join(self.destination, '{}_derived_roi_status.json'.format(self.initials)), 'w') as f:
-                json.dump(self.derived_roi_status, f)
-
-            # Saving isocenter names
-        with open(os.path.join(self.destination, '{}_isocenter_names.json'.format(self.initials)), 'w') as f:
-            json.dump(self.isocenter_names, f)
-
-            # saving planning CT names
-        with open(os.path.join(self.destination, '{}_planningCT_names.json'.format(self.initials)), 'w') as f:
-            json.dump(self.planning_CTs, f)"""
 
         return
 
@@ -140,7 +127,7 @@ class GET:
                     "Plan {} er Approved og kan ikke eksporteres med scriptable export og må eksporteres manuelt.".format(
                         plan.Name))
                 approved = True
-                self.error.extend(["\n{} is approved".format(plan.Name)])
+                self.error.extend(["\n{} is approved and needs to be exported manually".format(plan.Name)])
         except:
             pass
         imported = False
@@ -201,11 +188,13 @@ class GET:
     def _extract_clinical_goals_and_opt_objectives(self, plan):
         """Getting clinical goals and optimization objectives from plan with commissioned machine"""
         clinical_goals = {}
+        objectives = {}
         PlanOptimization = plan.PlanOptimizations[0]
         arguments = []
         # List to hold arg_dicts of all functions.
         # dictionary that holds the clinical goal objectives
-        clinical_goals[plan] = {}
+        clinical_goals[plan.Name] = {}
+        objectives[plan.Name] = {}
 
         # Get arguments from objective functions.
         if PlanOptimization.Objective != None:
@@ -225,28 +214,21 @@ class GET:
         for i, ef in enumerate(eval_functions):
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
             planning_goals = ef.PlanningGoal
-            clinical_goals[plan][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
+            clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
                                        planning_goals.Type,
                                        planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
                                        planning_goals.Priority]
 
-        # Saving each plan with the CT study names
-        # with open(os.path.join(destination,'{}_{}_planningCTs.json'.format(initials, plan.Name.replace("/","V"))), 'w') as f:
-        #    json.dump(planning_CTs, f)
-
-        # Saving clinical goals
-        # Replace / with V in filename
-
         # TODO: fullfør stor json fil
 
-        self.case_parameters["ClinicalGoals"][plan.Name] = clinical_goals[plan]
+        self.case_parameters["ClinicalGoals"][plan.Name] = clinical_goals[plan.Name]
         """with open(os.path.join(self.destination,
                                '{}_{}_ClinicalGoals.json'.format(self.initials, plan.Name.replace("/", "Y"))),
                   'w') as f:
             json.dump(clinical_goals[plan], f)"""
 
         # Saving objectives
-        self.case_parameters["Objectives"] = arguments
+        self.case_parameters["Objectives"][plan.Name] = arguments
         """with open(os.path.join(self.destination,
                                '{}_{}_objectives.json'.format(self.initials, plan.Name.replace("/", "Y"))),
                   'w') as f:
@@ -265,6 +247,7 @@ class GET:
 
         self.case_parameters["isocenter names"] = {}
         self.case_parameters["ClinicalGoals"] = {}
+        self.case_parameters["Objectives"] = {}
         self.case_parameters["derived rois status"] = {}
         self.case_parameters["planning CTs"] = {}
         self.beamsets = []
@@ -291,15 +274,15 @@ class GET:
 
             """We need this to know which structuresets we need to apply the derived roi expression to in the
                         set parameters."""
-            self.case_parameters["planning CTs"][plan.Name] = examination.Name
+            self.case_parameters["planning CTs"][examination.Name] = plan.Name
             print(examination.Name)
+            self.case_parameters["isocenter names"][plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
 
             if self.get_derived_rois:
                 self._extract_derived_roi_statuses(examination, structureset)
 
 
             if dose_computed and not approved and not imported:
-                self.case_parameters["isocenter names"][plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
                 # Changing name of beamset to be compatible with the ScriptableDicomExport function
                 if self.export_files:
                     plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace(":", "X")

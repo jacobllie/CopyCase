@@ -61,7 +61,6 @@ def save_derived_roi_expressions(case, derived_rois):
                 operation += 1
 
             elif any("AnteriorDistance" in key for key in keys):
-                print(keys)
                 # we are on an expression
                 if operation < 2:
                     # we are on the A expression
@@ -73,7 +72,6 @@ def save_derived_roi_expressions(case, derived_rois):
                                             dir(children) if not key.startswith('__')
                                             and "Children" not in key}
             elif any("RegionOfInterest" in key for key in keys):
-                print(children.RegionOfInterest.Name)
                 # We are on a region of interest
                 #print(operation)
                 if operation < 3:
@@ -109,19 +107,20 @@ def save_derived_roi_expressions(case, derived_rois):
                                                                                 and "Children" not in key}
             derived_roi_expressions[roi]["Wall roi"] = dependent_rois
         else:
-
             derived_roi_expressions[roi]["Output expression"] = {key: getattr(expression, key) for key in
                                                                                     dir(expression) if not key.startswith('__')
                                                                                     and "Children" not in key}
 
-            if len(dependent_rois) < 2:
+            operation = loop_derived_roi_expression(expression.Children, 0)
+            #if len(dependent_rois) < 2:
+            # if there are no operations in the derived roi expression it is likely an simple expansion/contraction
+            if operation == 0:
                 # We have a simple expansion/contraction
                 derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = True
-                derived_roi_expressions[roi]["A rois"] = dependent_rois
+                derived_roi_expressions[roi]["A rois"] = dependent_rois[:1]
             else:
                 derived_roi_expressions[roi]["SimpleExpansion/Contraction"] = False
-                operation = 0
-                operation = loop_derived_roi_expression(expression.Children, operation)
+                #operation = loop_derived_roi_expression(expression.Children, operation=0)
                 save_derived_roi_children(expression.Children, operation=0, dict=derived_roi_expressions[roi], num_operations=operation)
 
     sorted_derived_roi_expression = {}
@@ -137,7 +136,7 @@ def save_derived_roi_status(structureset, derived_rois, derived_roi_status):
                 # red volumes have dirty shape, updated volumes dont have dirty shapes
                 status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
             else:
-                # overriden empty or non empty rois
+                # overridden empty or overridden non empty rois
                 status = -1
             # non empty overriden rois
         else:
@@ -168,7 +167,9 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                                    InwardDistance=expression["Wall expression"]["InwardDistance"])
 
         else:
-
+            if roi.Name in ["PTVp_68", "CTVp_68", "PTVn_68", "PTVp_60"]:
+                print("here")
+                print(expression["A rois"])
             # we put the algebra on the first planning ct
             try:
                 if expression["SimpleExpansion/Contraction"]:
@@ -284,7 +285,7 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
     if all(succesfull):
         error = []
     i = 0
-    for e in planningCT_names.values():
+    for e in planningCT_names.keys():
         print(e)
         examination = case.Examinations[e]
         for roi in derived_rois:

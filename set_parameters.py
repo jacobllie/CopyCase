@@ -17,7 +17,7 @@ from GUI import ProgressBar, ConfirmCase, INFOBOX, ScrollBar
 from utils import generate_roi_algebra
 
 
-class SET:
+class Set:
     def __init__(self, Progress, initials, importfolder, patient, case):
         self.Progress = Progress
         self.initials = initials
@@ -56,34 +56,38 @@ class SET:
 
         # This works only when the structureset is not approved
         self.error = generate_roi_algebra(self.case, self.derived_rois_dict, self.derived_rois_status, self.planningCT_names, self.Progress)
-
+        sys.exit()
 
         self._set_plan_parameters()
 
 
-    def _extract_number(self, string):
-        try:
-            return int(string.split()[-1])
-        except ValueError:
-            return float('inf')  # Put non-numeric values at the end
 
     def _load_case_and_parameters(self):
         case_parameters = json.load(open(os.path.join(self.importfolder, '{}_case_parameters.json'.format(self.initials))))
+        # ColorTable {"30.0": [ 255, 64, 128, 128 ], ... relative dose as keys and RGB values in lists
         self.ColorTable = case_parameters.get("ColorTable")
+        # Copy to case is simply a string with the name of the case we want to copy to, none otherwise
         self.copy_to_case = case_parameters.get("copy to case")
-        self.examination_names = case_parameters.get("ExaminationNames")
+        # derived roi dict is a dictionary of all the derived roi expressions with all information necessary for correct
+        # roi algebra
         self.derived_rois_dict = case_parameters.get("derived rois dict")
+        # clinical goals contains a dictionary per plan with all the clinical goals indexed by numbers
+        # "Hode/Hals ins.": { "0": ["Body","AtMost","DoseAtAbsoluteVolume",7140,2,4],
         self.clinical_goals = case_parameters.get("ClinicalGoals")
+        #{"RoiName": "CTVp_68","IsRobust": false,"Weight": 300,"FunctionType": "UniformDose","DoseLevel": 6800,"IsConstraint": false},
         self.objectives = case_parameters.get("Objectives")
+        # derived roi status has planning CT as key and derived roi status as value (True if shape is dirty,
+        # -1 if  overridden empty or overridden non empty rois, False if shape is not dirty aka an updated roi)
         self.derived_rois_status = case_parameters.get("derived rois status")
         self.isocenter_names = case_parameters.get("isocenter names")
+        #Name of plan as key and the Ct study name as value:  "Hode/Hals ins.": "ØNH"
         self.planningCT_names = case_parameters.get("planning CTs")
+        #"ExaminationNames": {"1.2.752.243.1.1.20240717140505510.7000.41203": "Legeinntegning ønh",
         self.imported_examination_names = case_parameters.get("ExaminationNames")
 
-        print(self.copy_to_case)
-
+        # we set the current case either to the newest one or to the one that the user wanted to copy to
         if self.copy_to_case:
-            case = copy_to_case
+            case = self.patient.Cases[self.copy_to_case]
         else:
             case = self._find_most_current_case()
 
@@ -161,26 +165,47 @@ class SET:
         self.case.CaseSettings.DoseColorMap.PresentationType = "Absolute"
 
     def _set_examination_names(self):
+        existing_examination_names = [e.Name for e in self.case.Examinations]
         # Updating examination names
         self.Progress.update_operation("Setter korrekt bildenavn")
-        lung_examinations = []
         # first setting all names to end with tmp to ensure that we avoid duplicates which cause errors (e.g. CT 1 needs to be called CT 2),
         # but there is already a CT 2 which havent gotten its name yet
-        for i, ex in enumerate(self.case.Examinations):
+
+        # we only iterate the imported exams
+        imported_exams = [e for e in self.case.Examinations if e.Series[0].ImportedDicomUID in self.imported_examination_names.keys()]
+        for i, ex in enumerate(imported_exams):
             # Changing prog to account for both adding tmp to exam names, then removing tmp
-            prog = round(((i + 1) / (2 * len(self.case.Examinations))) * 100, 0)
+            prog = round(((i + 1) / (2 * len(imported_exams))) * 100, 0)
             self.Progress.update_progress(prog)
             ex.Name = self.imported_examination_names[ex.Series[0].ImportedDicomUID] + "tmp"
-        for i, ex in enumerate(self.case.Examinations):
-            prog = round(50 + ((i + 1) / (2 * len(self.case.Examinations))) * 100, 0)
+
+        for i, ex in enumerate(imported_exams):
+            prog = round(50 + ((i + 1) / (2 * len(imported_exams))) * 100, 0)
             self.Progress.update_progress(prog)
-            ex.Name = self.imported_examination_names[ex.Series[0].ImportedDicomUID]
-            #if "lung" in ex.GetProtocolName().lower():
-            #lung_examinations.append(ex.Name)
+            new_name = self.imported_examination_names[ex.Series[0].ImportedDicomUID]
+            # if there already exists an examination with the same name, we add a 1 to the name
+            if new_name in existing_examination_names:
+                # if the examination has a plan connected to it, we need to change the name in the planningCT dicionary
+                self._update_case_parameters_w_examination_keys(new_name)
+                # updating the name of the examination so that planningCT and examination name are equal
+                ex.Name = new_name + " 1"
         # if lung is in protocolname we might have a 4DCT
         if any(("lunge" in e.GetProtocolName().lower() for e in self.case.Examinations if e.GetProtocolName())):
             self._handle_lung_examinations()
 
+    def _update_case_parameters_w_examination_keys(self, new_name):
+        """If we copy a case to a specific case, and there exists an examination with the same name, we need to change
+        the name of the imported examination to have a 1 at the end.
+        If we do this we need to also update the keys of the case parameter dictionaries that use the examination name
+        as key, which is the case for the planning CT names and the derived roi status"""
+        if new_name in self.planningCT_names.keys():
+            # we add a new element with the same plan, but change the name
+            self.planningCT_names[new_name + " 1"] = self.planningCT_names[new_name]
+            # then we delete the element that has the wrong name
+            self.planningCT_names.pop(new_name)
+        if new_name in self.derived_rois_status.keys():
+            self.derived_rois_status[new_name + " 1"] = self.derived_rois_status[new_name]
+            self.derived_rois_status.pop(new_name)
 
     def _handle_lung_examinations(self):
         """This function takes examinations that contain "Lunge" in their protocol name, and checks whether or not they are part of a 4D ct group"""
@@ -228,6 +253,16 @@ class SET:
                                             ExaminationNames=fourDCT)
         except:
             # TODO: errormessage
+            pass
+
+
+    def _extract_number(self, string):
+        """help method for the _handle_lung_examinations functions"""
+        try:
+            return int(string.split()[-1])
+        except ValueError:
+            return float('inf')  # Put non-numeric values at the end
+
 
     def _set_plan_parameters(self):
         CopyPlanName = []
@@ -244,6 +279,7 @@ class SET:
                 self.Progress.update_plan("Plan {}/{}".format(i + 1, len(self.case.TreatmentPlans)))
                 pass
 
+            # need this to extract correct objectives and clinical goals
             original_plan_name = plan.Name
 
             # If plan has copy in
@@ -255,16 +291,11 @@ class SET:
                         self.case.CopyPlan(PlanName=plan.Name, NewPlanName="{} Copy".format(plan.Name),
                                       KeepBeamSetNames=True)
                         plan = self.case.TreatmentPlans["{} Copy".format(plan.Name)]
-                        plan_filename = original_plan_name.replace("/", "Y").replace(":", "X")
                     else:
                         print("plan copy already exists")
                         continue
 
             else:
-                # Need this to extract the correct file
-                plan_filename = plan.Name
-                print(plan_filename)
-
                 # Changing the name of the beamset back to its original name.
                 # This is only the case if an unapproved plan has been imported
                 plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
@@ -275,7 +306,7 @@ class SET:
                 # NB. Removing consider imported dose as clinical check is not scriptable
                 if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical:
                     for beam in plan.BeamSets[0].Beams:
-                        beam.Isocenter.Annotation.Name = isocenter_names[plan.Name]
+                        beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]
 
             # print("Plan filename")
             # print(plan_filename)
@@ -284,9 +315,10 @@ class SET:
 
             self.Progress.update_operation("Legger til Optimization Objectives")
 
+            objectives = self.objectives[original_plan_name]
             # Adding optimization functions from the original plan for each ROI
-            for j, arg_dict in enumerate(self.objectives):
-                prog = round(((j + 1) / len(self.objectives)) * 100, 0)
+            for j, arg_dict in enumerate(objectives):
+                prog = round(((j + 1) / len(objectives)) * 100, 0)
                 self.Progress.update_progress(prog)
 
                 with CompositeAction('Add Optimization Function'):
@@ -304,11 +336,13 @@ class SET:
             self.Progress.update_operation("Legger til Clinical Goals")
 
             eval_setup = plan.TreatmentCourse.EvaluationSetup
-            for k, goal in enumerate(self.clinical_goals):
-                prog = round(((k + 1) / len(self.clinical_goals)) * 100, 0)
+
+            clinical_goals = self.clinical_goals[original_plan_name]
+            for k, goal in enumerate(clinical_goals):
+                prog = round(((k + 1) / len(clinical_goals)) * 100, 0)
                 self.Progress.update_progress(prog)
                 # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-                RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = self.clinical_goals[goal]
+                RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
                 try:
                     eval_setup.AddClinicalGoal(RoiName=RoiName,
                                                GoalCriteria=Goalriteria,

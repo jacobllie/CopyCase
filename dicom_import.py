@@ -33,6 +33,8 @@ def Import(importfolder, patient, copy_to_case):
 
         # Import image series from importfolder to current patient
         # CaseName = None results in new case
+        print("here")
+        print(copy_to_case)
         warnings = patient.ImportDataFromPath(Path=importfolder, SeriesOrInstances=series, CaseName=copy_to_case)
         print("Warnings: %s" % warnings)
     except:
