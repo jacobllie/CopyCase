@@ -185,7 +185,8 @@ class mainGUI:
 
     def open_file(self):
         #path = 'H:\\Dokumenter\\Github\\CopyCase\\CopyCase Hjelp.docx'
-        path = "I:\\STOLAV - Kreftklinikken\\Avdelinger kreft\\Avdeling for stråleterapi\\Fysikere\\Jacob\\CopyCase\\CopyCase Hjelp.docx"
+        #path = "I:\\STOLAV - Kreftklinikken\\Avdelinger kreft\\Avdeling for stråleterapi\\Fysikere\\Jacob\\CopyCase\\CopyCase Hjelp.docx"
+        path = "I:\\STOLAV - Kreftklinikken\\Avdelinger kreft\\Avdeling for stråleterapi\\Fysikere\\raystation-scripts\\resources\\CopyCase"
         os.startfile(path, 'open')
 
     def help(self):
