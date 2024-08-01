@@ -99,7 +99,7 @@ def copycase():
             root.mainloop()
         if not export_files:
             #Message about needing to export manually
-            message = "Eksporter alle planer, doser, bildeserier etc. manuelt til:{}".format(destination)
+            message = "Eksporter alle relevante planer, doser, bildeserier etc. manuelt til:{}".format(destination)
             messagebox.showinfo("INFO", message)
 
     if import_files or set_parameters:

@@ -300,6 +300,7 @@ class ProgressBar:
 
     def update_plan(self, plan_number:int):
         self.plan_label.config(text=plan_number)
+        self.root.update_idletasks()
 
     def update_operation(self, text:str):
         self.operation_label.config(text=text)

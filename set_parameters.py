@@ -56,7 +56,6 @@ class Set:
 
         # This works only when the structureset is not approved
         self.error = generate_roi_algebra(self.case, self.derived_rois_dict, self.derived_rois_status, self.planningCT_names, self.Progress)
-        sys.exit()
 
         self._set_plan_parameters()
 
@@ -165,7 +164,7 @@ class Set:
         self.case.CaseSettings.DoseColorMap.PresentationType = "Absolute"
 
     def _set_examination_names(self):
-        existing_examination_names = [e.Name for e in self.case.Examinations]
+
         # Updating examination names
         self.Progress.update_operation("Setter korrekt bildenavn")
         # first setting all names to end with tmp to ensure that we avoid duplicates which cause errors (e.g. CT 1 needs to be called CT 2),
@@ -173,11 +172,17 @@ class Set:
 
         # we only iterate the imported exams
         imported_exams = [e for e in self.case.Examinations if e.Series[0].ImportedDicomUID in self.imported_examination_names.keys()]
+        # if imported exam has same name as an existing examination, the imported exam needs to have another name
+        existing_examination_names = [e.Name for e in self.case.Examinations
+                                      if e.Series[0].ImportedDicomUID not in self.imported_examination_names.keys()]
+
+        print(existing_examination_names)
+        print([e.Name for e in imported_exams])
         for i, ex in enumerate(imported_exams):
             # Changing prog to account for both adding tmp to exam names, then removing tmp
             prog = round(((i + 1) / (2 * len(imported_exams))) * 100, 0)
             self.Progress.update_progress(prog)
-            ex.Name = self.imported_examination_names[ex.Series[0].ImportedDicomUID] + "tmp"
+            ex.Name = ex.Name + "tmp"
 
         for i, ex in enumerate(imported_exams):
             prog = round(50 + ((i + 1) / (2 * len(imported_exams))) * 100, 0)
@@ -189,6 +194,8 @@ class Set:
                 self._update_case_parameters_w_examination_keys(new_name)
                 # updating the name of the examination so that planningCT and examination name are equal
                 ex.Name = new_name + " 1"
+            else:
+                ex.Name = new_name
         # if lung is in protocolname we might have a 4DCT
         if any(("lunge" in e.GetProtocolName().lower() for e in self.case.Examinations if e.GetProtocolName())):
             self._handle_lung_examinations()
@@ -272,12 +279,10 @@ class Set:
 
             # For some reason, if a plan copy is generated within the loop it appears in case. TreatmentPlans in the next iteration
             # So we skip it if it appears
-            try:
-                if plan.Name in CopyPlanName:
-                    continue
-            except:
+            if plan.Name in CopyPlanName:
+                continue
+            else:
                 self.Progress.update_plan("Plan {}/{}".format(i + 1, len(self.case.TreatmentPlans)))
-                pass
 
             # need this to extract correct objectives and clinical goals
             original_plan_name = plan.Name
