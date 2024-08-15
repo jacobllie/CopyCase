@@ -11,11 +11,10 @@ from connect import *
 
 
 class mainGUI:
-    def __init__(self, root:tk.Tk, patient, path):
+    def __init__(self, root:tk.Tk, patient):
         self.root = root
         self.root.title("Kopier Case")
         self.patient = patient
-        self.path = path
 
         self.get_parameters_var = tk.BooleanVar()
         self.derived_rois_var = tk.BooleanVar()
@@ -185,7 +184,8 @@ class mainGUI:
 
 
     def open_file(self):
-        os.startfile(os.path.join(self.path,"CopyCase Hjelp.docx"), 'open')
+        # sys path -1 is the last added path which contains the copy case help file
+        os.startfile(os.path.join(sys.path[-1],"CopyCase Hjelp.docx"), 'open')
 
     def help(self):
         newroot = tk.Toplevel(self.root)
