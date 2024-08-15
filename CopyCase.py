@@ -16,6 +16,9 @@ from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
 from dicom_import import Import
 
 
+# TODO: Ta hensyn til om det eksisterer en plan i caset som det skal kopieres til
+#  og eventuelt om det finnes en låst plan med et låst struktursett
+
 def copycase():
     # Load patient and case data:
     try:

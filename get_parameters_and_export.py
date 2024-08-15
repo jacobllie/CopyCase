@@ -54,8 +54,6 @@ class Get:
         if self.export_files:
             self._export_files()
 
-        self.patient.Save()
-
         return
 
     def _include_all_rois_for_export(self):
@@ -98,13 +96,24 @@ class Get:
         """with open(os.path.join(self.destination, '{}_derived_roi_dict.json'.format(self.initials)), 'w') as f:
             json.dump(self.derived_rois_dict, f)"""
 
-    def _plans_w_beamset(self):
-        plans_with_beamset = [p for p in self.case.TreatmentPlans if p.BeamSets]
+    def _plans_w_beamset_and_beams(self):
+        #print([p for p in self.case.TreatmentPlans if p.BeamSets and p.BeamSets[0].Beams])
+        plans_with_beamset_and_beams = [p for p in self.case.TreatmentPlans if p.BeamSets and p.BeamSets[0].Beams]
+        #plans_with_beamset_and_beams = []
+        #for p in self.case.TreatmentPlans:
+        #    if p.BeamSets:
+        #        if p.BeamSets[0].Beams:
 
-        if len(plans_with_beamset) == 0:
-            print("There are no plans with both a beamset.")
-            self.error.extend(["\nThere are no plans with a beamset."])
-        return plans_with_beamset
+        #            plans_with_beamset_and_beams.append(p)
+        #        else:
+        #            self.error.extend(["\n{p.Name} does not have "])
+        #    else:
+        #        self.error.extend(["\nThere are no plans with a beamset and beams."])
+
+        if len(plans_with_beamset_and_beams) == 0:
+            print("There are no plans with both a beamset and beams.")
+            self.error.extend(["\nThere are no plans with a beamset and beams."])
+        return plans_with_beamset_and_beams
 
     def _sanity_check(self, plan):
         """Performing plan sanity check: Is the plan approved, is it imported, does it have clinical doses. All things
@@ -255,8 +264,8 @@ class Get:
         # Looping trough plans
         self.exported_plans = []
 
-        plans_w_beamset = self._plans_w_beamset()
-        for i, plan in enumerate(plans_w_beamset):  # enumerate(case.TreatmentPlans):
+        plans_w_beamset_and_beams = self._plans_w_beamset_and_beams()
+        for i, plan in enumerate(plans_w_beamset_and_beams):  # enumerate(case.TreatmentPlans):
 
             approved, imported, dose_computed = self._sanity_check(plan)
             #except:
@@ -276,6 +285,8 @@ class Get:
                         set parameters."""
             self.case_parameters["planning CTs"][examination.Name] = plan.Name
             print(examination.Name)
+            print(self.case_parameters["isocenter names"])
+            print(plan.Name)
             self.case_parameters["isocenter names"][plan.Name] = plan.BeamSets[0].Beams[0].Isocenter.Annotation.Name
 
             if self.get_derived_rois:
@@ -302,3 +313,5 @@ class Get:
             except:
                 print("Could not change plan name")
             plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace("X", ":")
+
+        self.patient.Save()
