@@ -11,4 +11,4 @@ sys.path.append(PATH)
 
 import CopyCase as copycase
 
-copycase.copycase()
+copycase.copycase(PATH)

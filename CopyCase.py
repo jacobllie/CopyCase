@@ -19,7 +19,14 @@ from dicom_import import Import
 # TODO: Ta hensyn til om det eksisterer en plan i caset som det skal kopieres til
 #  og eventuelt om det finnes en låst plan med et låst struktursett
 
-def copycase():
+def copycase(path):
+    """
+    copycase extracts case parameters such as clinical goals, optimization objectives, derived roi expressions and dose colors.
+    It can also export plans and examinations either to a new case or to an existing case. It can import the plans and examinations
+    and set the extracted case parameters
+    :param path: needed for the help function in the gui to open a word document
+    :return:
+    """
     # Load patient and case data:
     try:
         patient = get_current("Patient")
@@ -39,7 +46,7 @@ def copycase():
 
 
     root = tk.Tk()
-    app = mainGUI(root, patient)
+    app = mainGUI(root, patient, path)
     root.mainloop()
 
     get_parameters, get_derived_rois, export_files, import_files, set_parameters, delete_files, copy_to_case = app.options_list
