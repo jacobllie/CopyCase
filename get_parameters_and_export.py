@@ -191,7 +191,6 @@ class Get:
         if not dose_computed:
             self.error.extend(["\nCan't compute doses for {}".format(plan.Name)])
 
-
         return [approved, imported, dose_computed]
 
     def _extract_clinical_goals_and_opt_objectives(self, plan):
@@ -267,7 +266,12 @@ class Get:
         plans_w_beamset_and_beams = self._plans_w_beamset_and_beams()
         for i, plan in enumerate(plans_w_beamset_and_beams):  # enumerate(case.TreatmentPlans):
 
-            approved, imported, dose_computed = self._sanity_check(plan)
+            s = self._sanity_check(plan)
+            if not s[0]:
+                print("Plan cannot be processes")
+                continue
+            else:
+                approved, imported, dose_computed = self._sanity_check(plan)
             #except:
             #print("here")
             # if sanity check returns None, the plan does not have a beamset and we can do nothing

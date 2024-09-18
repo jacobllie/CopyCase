@@ -33,11 +33,6 @@ class Set:
         """
         Function that imports examinations, plans and doses to new case and sets isodose colortable, examination names,
         optimization objectives, clinical goals and plan CT names to generate a copied case.
-        :param initials: str
-        :param importfolder: str
-        :param patient: RayStation PyScriptObject
-        :param case: RayStation PyScriptObject
-        :return: None
         """
 
         self._load_case_and_parameters()
@@ -54,8 +49,9 @@ class Set:
         # Generating roi algebra for derived rois
         self.Progress.update_operation("Oppdatererer derived rois")
 
-        # This works only when the structureset is not approved
-        self.error = generate_roi_algebra(self.case, self.derived_rois_dict, self.derived_rois_status, self.planningCT_names, self.Progress)
+        if self.derived_rois_dict:
+            # This works only when the structureset is not approved
+            self.error = generate_roi_algebra(self.case, self.derived_rois_dict, self.derived_rois_status, self.planningCT_names, self.Progress)
 
         self._set_plan_parameters()
 
@@ -123,7 +119,8 @@ class Set:
         values in the list rather than the indices. It does the same as numpy.argmax
         """
 
-        most_current_idx = max(range(len(datetimes)), key=datetimes.__getitem__)
+        most_current_idx = max(range(len(datetimes)), key=lambda i:datetimes[i])
+        print(most_current_idx)
         most_current_case = case_info[most_current_idx]["Name"]
 
         print(most_current_case)

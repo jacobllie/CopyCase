@@ -87,7 +87,8 @@ def copycase():
     #Initials used in filenames
     initials = ""
     for name in patient_name:
-        initials += name[0]
+        # some names have more ^^ after the name which needs to be accounted for
+        initials += name[0] if len(name) > 0 else ""
 
     importfolder = destination
 
