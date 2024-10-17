@@ -38,7 +38,7 @@ def copycase():
         raise IOError("No case loaded.")
 
 
-    destination = "C:\\temp\\tempexport"
+    destination = "C:\\temp\\tempexport\\"
     case_parameters = {}
     error = []
 
@@ -143,4 +143,3 @@ def copycase():
             delete_files_and_folders(destination)
         except:
             pass
-

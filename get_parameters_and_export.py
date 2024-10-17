@@ -1,5 +1,8 @@
 # Function that extracts RayStation case parameters and exports
 
+# import raystation modules
+from connect import *
+
 #import python modules
 import json
 import os
@@ -7,6 +10,7 @@ import sys
 import time
 import connect
 import tkinter as tk
+import glob
 
 #import local files
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
@@ -51,8 +55,10 @@ class Get:
             self.derived_roi_status = {}
             self._extract_derived_roi_expressions()
         self._process_plans()
-        if self.export_files:
-            self._export_files()
+
+        # plans are exported if this was chosen by the user
+        self.export_plans()
+        
 
         return
 
@@ -127,7 +133,7 @@ class Get:
         if not all([True if beam.BeamMU > 0 else False for beam in plan.BeamSets[0].Beams]):
             self.error.extend(["\n{} has beams with non-zero MU".format(plan.Name)])
             print("{} has beams with non-zero MU".format(plan.Name))
-            return [None]
+            return []
 
         approved = False
         try:
@@ -136,7 +142,8 @@ class Get:
                     "Plan {} er Approved og kan ikke eksporteres med scriptable export og må eksporteres manuelt.".format(
                         plan.Name))
                 approved = True
-                self.error.extend(["\n{} is approved and needs to be exported manually".format(plan.Name)])
+                # we dont need this errormessage because the script waits for user to manually export before continuing
+                #self.error.extend(["\n{} is approved and needs to be exported manually".format(plan.Name)])
         except:
             pass
         imported = False
@@ -265,10 +272,12 @@ class Get:
 
         plans_w_beamset_and_beams = self._plans_w_beamset_and_beams()
         for i, plan in enumerate(plans_w_beamset_and_beams):  # enumerate(case.TreatmentPlans):
-
+            print(plan.Name)
             s = self._sanity_check(plan)
-            if not s[0]:
-                print("Plan cannot be processes")
+            print(s)
+            # if s does not contain sanity values, the plan cannot be processed
+            if not s:
+                print("Plan cannot be processed")
                 continue
             else:
                 approved, imported, dose_computed = self._sanity_check(plan)
@@ -288,6 +297,7 @@ class Get:
             """We need this to know which structuresets we need to apply the derived roi expression to in the
                         set parameters."""
             self.case_parameters["planning CTs"][examination.Name] = plan.Name
+            
             print(examination.Name)
             print(self.case_parameters["isocenter names"])
             print(plan.Name)
@@ -307,6 +317,23 @@ class Get:
                     self.patient.Save()
         # saving patient before exporting
 
+    def export_plans(self):
+        """If approved plans are found in the case, then the user is asked to manually export them before the script continues
+        If no approved plans are found, then automatic export will commence.
+        """
+        # dict with names and approvalstatuses of the case plans
+        plan_approvalstatus = {p.Name:p.Review.ApprovalStatus == "Approved" for p in self.case.TreatmentPlans if p.Review}
+        if any(plan_approvalstatus.values()) and self.export_files:
+            # saving patient before export
+            self.patient.Save()
+            # listing approved plans for user
+            approved_plans = tuple((p for p, approved in plan_approvalstatus.items() if approved))
+            await_user_input('Approved plans {} found.\nPress OK and export CTs, unapproved structures, doses and plans' 
+                                 ' manually to C:\\temp\\tempexport\nThen resume Script'.format(approved_plans))
+            manually_exported_plans = [file for file in glob.glob(self.destination + "*.dcm")]
+        # if no plans are approved, they can be exported automatically
+        elif self.export_files:
+            self._export_files()
 
     def _export_files(self):
         exporterror = Export(self.destination, self.case, self.beamsets)

@@ -129,9 +129,9 @@ def save_derived_roi_expressions(case, derived_rois):
 
 def save_derived_roi_status(structureset, derived_rois, derived_roi_status):
     for roi in [r for r in structureset.RoiGeometries if r.OfRoi.Name in derived_rois]:
-        # ikke tomme derived rois
+        # derived rois that are NOT empty and invalid (red square) have primary shape
         if roi.PrimaryShape:
-            # røde volumer har derivedroistatus
+            # invalid structure (red square) have derived roi status
             if roi.PrimaryShape.DerivedRoiStatus:
                 # red volumes have dirty shape, updated volumes dont have dirty shapes
                 status = roi.PrimaryShape.DerivedRoiStatus.IsShapeDirty
@@ -140,7 +140,7 @@ def save_derived_roi_status(structureset, derived_rois, derived_roi_status):
                 status = -1
             # non empty overriden rois
         else:
-            # empty red rois
+            # empty invalid derived rois
             status = True
 
         derived_roi_status[roi.OfRoi.Name] = status
