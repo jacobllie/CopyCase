@@ -41,7 +41,7 @@ class mainGUI:
 
         #self.root.columnconfigure(0, weight=0.5)  # First column
 
-        tk.Label(self.root, text="NB! Dersom Caset inneholder en Approved plan, så må CopyCase kjøres to ganger (trykk hjelp for mer info)").\
+        tk.Label(self.root, text="NB! Dersom det finnes låste planer i caset, så vil skriptet be deg om å eksportere disse manuelt til tempexport. (trykk hjelp for mer info)").\
             grid(row=0, column=0, columnspan=1, pady=1)
 
 
@@ -190,13 +190,14 @@ class mainGUI:
     def help(self):
         newroot = tk.Toplevel(self.root)
         newroot.title("hjelp")
-        helptext = "\tNB: \n \tDersom det finnes låste planer i caset, så må disse eksporteres manuelt til tempexport og skriptet må kjøres i to omganger. " \
+        helptext = "\tNB: \n \tDersom det finnes låste planer i caset, så vil skriptet be deg om å eksportere disse manuelt til tempexport." \
                    "For mer info om dette, trykk på «Beskrivelse av manuell eksport».\n" \
                    "\tDersom du ikke ønsker å eksportere alt, så må det også gjøres manuelt.\n\n"\
                    "\tBeskrivelse av valg:\n"\
                    "\t<Hent Case parametere> henter ulike Case parametere som navn på CT studier, clinical goals og optimization objectives og legger disse i en lokal mappe som heter tempexport.\n\n" \
-                   "\t<Eksporter alle studier, planer og doser> eksporterer alle bildestudier, alle planer og alle doser som DICOM filer til tempexport.\n\n" \
-                   "\t<Importer alle eksporterte filer> importerer alle filene i tempexport til et nytt case.\n\n" \
+                   "\t<Hent regler for utledede ROIer> er eksperimentell og man må sjekke om regler har kommet inn rett i kopiert case\n\n" \
+                   "\t<Eksporter studier, planer og doser> eksporterer alle bildestudier, alle planer og alle doser som DICOM filer til tempexport om det ikke finnes noen låste planer i caset.\n\n" \
+                   "\t<Importer alle eksporterte filer> importerer alle filene i tempexport til et nytt case dersom ikke et case er valgt.\n\n" \
                    "\t<Sett Case parametere> setter inn case parameterne som ble hentet i det første steget, " \
                    "men før dette skjer vil skriptet be om en bekreftelse. Pass på at case-navnet i meldingsboksen avviker fra det opprinnelig caset.\n\n" \
                    "\t<Slett midlertidige filer> sletter midlertidige filer dersom de eksisterer før nye parametere hentes, og sletter filene etter alle case parametere er satt."
