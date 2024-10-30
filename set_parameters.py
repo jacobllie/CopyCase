@@ -4,7 +4,11 @@ import sys
 
 from connect import *
 import json
-import System.Drawing
+import clr
+# Implicit loading (just saying from System.Drawing import Color) is deprecated. We need to add System.Drawing as reference 
+# whatever that
+clr.AddReference("System.Drawing")
+from System.Drawing import Color
 import datetime
 import tkinter as tk
 from tkinter import ttk
