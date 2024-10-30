@@ -110,19 +110,20 @@ class Set:
             Filter={"PatientID": self.patient.PatientID, "LastName": self.patient.Name.split("^")[0]})
 
         assert len(patient_info) > 0, "Patient info is empty"
-
         case_info = patient_db.QueryCaseInfo(PatientInfo=patient_info[0])
 
-        datetimes = []
-        for c in case_info:
-            datetimes.append(c["LastModified"])
+        # if the currently loaded case is not saved, it is not possible to extract LastModified object
+        if any(str(c["LastModified"]) == None for c in case_info):
+            self.patient.Save()
+        
+        datetimes = [c["LastModified"] for c in case_info]
 
         """
         The range(len(lst)) generates a sequence of indices from 0 to len(lst)-1. 
         The key=lst.__getitem__ specifies that the comparison should be based on the 
         values in the list rather than the indices. It does the same as numpy.argmax
         """
-
+        print(datetimes)
         most_current_idx = max(range(len(datetimes)), key=lambda i:datetimes[i])
         print(most_current_idx)
         most_current_case = case_info[most_current_idx]["Name"]
@@ -310,7 +311,7 @@ class Set:
                 # Does not work if there are multiple beamsets
                 # Changing name of isocenter if the doses are not considered clinical
                 # NB. Removing consider imported dose as clinical check is not scriptable
-                if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical:
+                if not plan.TreatmentCourse.TotalDose.DoseValues.IsAccurate: #IsClinical 2023B
                     for beam in plan.BeamSets[0].Beams:
                         beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]
 
@@ -348,12 +349,12 @@ class Set:
                 prog = round(((k + 1) / len(clinical_goals)) * 100, 0)
                 self.Progress.update_progress(prog)
                 # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-                RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
+                RoiName, Goalriteria, GoalType, PrimaryAcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
                 try:
                     eval_setup.AddClinicalGoal(RoiName=RoiName,
                                                GoalCriteria=Goalriteria,
                                                GoalType=GoalType,
-                                               AcceptanceLevel=AcceptanceLevel,
+                                               PrimaryAcceptanceLevel=PrimaryAcceptanceLevel,
                                                ParameterValue=ParameterValue,
                                                Priority=Priority
                                                )
