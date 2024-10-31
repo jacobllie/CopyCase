@@ -13,7 +13,7 @@ from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import Get
 from set_parameters import Set
 from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
-from dicom_import import Import
+from dicom_import import Import, Import_new_patient
 
 
 # TODO: Ta hensyn til om det eksisterer en plan i caset som det skal kopieres til
@@ -30,12 +30,17 @@ def copycase():
     # Load patient and case data:
     try:
         patient = get_current("Patient")
-    except SystemError:
-        raise IOError("No patient loaded.")
-    try:
+    except:
+        patient = None
+        print("No patient loaded.")
+    """try:
         case = get_current("Case")
     except SystemError:
-        raise IOError("No case loaded.")
+        raise IOError("No case loaded.")"""
+    try:
+        patient_db = get_current("PatientDB")
+    except:
+        print("Could not get patient database.")
 
 
     destination = "C:\\temp\\tempexport\\"
@@ -49,12 +54,10 @@ def copycase():
     app = mainGUI(root, patient)
     root.mainloop()
 
-    get_parameters, get_derived_rois, export_files, import_files, set_parameters, delete_files, copy_to_case = app.options_list
-
+    get_parameters, get_derived_rois, export_files, import_files, import_new_patient, set_parameters, delete_files, copy_to_case = app.options_list
 
     print({"delete files":delete_files,"get parameters":get_parameters, "get derived rois":get_derived_rois,"export files":export_files,
-           "import files":import_files,"set parameters":set_parameters,"copy to case":copy_to_case})
-
+           "import files":import_files,"import new patient":import_new_patient,"set parameters":set_parameters,"copy to case":copy_to_case})
 
     # Hvis get_parameters er sant, kan vi slette eksisterende filer, men dersom bare delete files er sant, så
     # Kan det være man mener å slette filene etter import og set_parameters
@@ -64,7 +67,6 @@ def copycase():
     # delete files
 
     case_parameters["copy to case"] = copy_to_case
-
 
     if delete_files and get_parameters:
         #deleting existing files and folders in tempexport
@@ -82,24 +84,22 @@ def copycase():
     if not os.path.exists(destination):
         os.makedirs(destination)
 
-    patient_name = patient.Name.split("^")
+    """patient_name = patient.Name.split("^")
 
     #Initials used in filenames
     initials = ""
     for name in patient_name:
         # some names have more ^^ after the name which needs to be accounted for
-        initials += name[0] if len(name) > 0 else ""
-
-    importfolder = destination
+        initials += name[0] if len(name) > 0 else "" """
 
     if get_parameters:
         # initialising GET class
-        get = Get(initials, destination, patient, case, export_files=export_files,
+        get = Get(destination, export_files=export_files,
                                           get_derived_rois=get_derived_rois)
         # extracting parameters and exporting if export files is true
         # merging local case parameters and get's case parameters
         case_parameters = {**case_parameters, **get.case_parameters}
-
+        initials = "".join(n[0] for n in case_parameters["Name"].split("^") if len(n) > 0)
         # saving one big case parameters file
         with open(os.path.join(destination, '{}_case_parameters.json'.format(initials)), 'w') as f:
             json.dump(case_parameters, f)
@@ -114,17 +114,24 @@ def copycase():
             messagebox.showinfo("INFO", message)
 
     if import_files or set_parameters:
+        importfolder = destination
+        
+        json_files = [file for file in os.listdir(destination) if ".json" in file]
+        if not json_files:
+            messagebox.showerror(message=f"No case parameter file in {destination}, choose get parameters")
 
         # case_parameters should always exists if get parameters have been run before
-        tmp = json.load(open(os.path.join(destination, '{}_case_parameters.json'.format(initials))))
-        copy_to_case = tmp["copy to case"]
+        case_parameters = json.load(open(os.path.join(destination, json_files[0])))
 
         prog = tk.Tk()
         app = ProgressBar(prog)
         if import_files:
-            Import(importfolder, patient, copy_to_case)
+            if import_new_patient:
+                Import_new_patient(importfolder, case_parameters, patient_db)
+            else:
+                Import(importfolder, case_parameters)
         if set_parameters:
-            set = Set(app, initials, importfolder, patient, case)
+            set = Set(app, case_parameters, importfolder)
             error = set.error
 
     if error != [] and error != None:

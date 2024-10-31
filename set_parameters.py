@@ -4,6 +4,10 @@ import sys
 
 from connect import *
 import json
+import clr
+# Implicit loading (just saying from System.Drawing import Color) is deprecated. We need to add System.Drawing as reference 
+# whatever that
+clr.AddReference("System.Drawing")
 import System.Drawing
 import datetime
 import tkinter as tk
@@ -18,17 +22,23 @@ from utils import generate_roi_algebra
 
 
 class Set:
-    def __init__(self, Progress, initials, importfolder, patient, case):
+    def __init__(self, Progress, case_parameters, importfolder):
         self.Progress = Progress
-        self.initials = initials
+        self.case_parameters = case_parameters
         self.importfolder = importfolder
-        self.patient = patient
-        self.case = case
 
         self.set_parameters_func()
 
     def set_parameters_func(self):
-        # TODO: Håndter kopier til case. Kanskje med en parameter som lagres?
+
+        try:
+            self.patient = get_current("Patient")
+        except SystemError:
+            raise IOError("No patient loaded.")
+        try:
+            self.case = get_current("Case")
+        except SystemError:
+            raise IOError("No case loaded.")
 
         """
         Function that imports examinations, plans and doses to new case and sets isodose colortable, examination names,
@@ -58,27 +68,26 @@ class Set:
 
 
     def _load_case_and_parameters(self):
-        case_parameters = json.load(open(os.path.join(self.importfolder, '{}_case_parameters.json'.format(self.initials))))
         # ColorTable {"30.0": [ 255, 64, 128, 128 ], ... relative dose as keys and RGB values in lists
-        self.ColorTable = case_parameters.get("ColorTable")
+        self.ColorTable = self.case_parameters.get("ColorTable")
         # Copy to case is simply a string with the name of the case we want to copy to, none otherwise
-        self.copy_to_case = case_parameters.get("copy to case")
+        self.copy_to_case = self.case_parameters.get("copy to case")
         # derived roi dict is a dictionary of all the derived roi expressions with all information necessary for correct
         # roi algebra
-        self.derived_rois_dict = case_parameters.get("derived rois dict")
+        self.derived_rois_dict = self.case_parameters.get("derived rois dict")
         # clinical goals contains a dictionary per plan with all the clinical goals indexed by numbers
         # "Hode/Hals ins.": { "0": ["Body","AtMost","DoseAtAbsoluteVolume",7140,2,4],
-        self.clinical_goals = case_parameters.get("ClinicalGoals")
+        self.clinical_goals = self.case_parameters.get("ClinicalGoals")
         #{"RoiName": "CTVp_68","IsRobust": false,"Weight": 300,"FunctionType": "UniformDose","DoseLevel": 6800,"IsConstraint": false},
-        self.objectives = case_parameters.get("Objectives")
+        self.objectives = self.case_parameters.get("Objectives")
         # derived roi status has planning CT as key and derived roi status as value (True if shape is dirty,
         # -1 if  overridden empty or overridden non empty rois, False if shape is not dirty aka an updated roi)
-        self.derived_rois_status = case_parameters.get("derived rois status")
-        self.isocenter_names = case_parameters.get("isocenter names")
+        self.derived_rois_status = self.case_parameters.get("derived rois status")
+        self.isocenter_names = self.case_parameters.get("isocenter names")
         #Name of plan as key and the Ct study name as value:  "Hode/Hals ins.": "ØNH"
-        self.planningCT_names = case_parameters.get("planning CTs")
+        self.planningCT_names = self.case_parameters.get("planning CTs")
         #"ExaminationNames": {"1.2.752.243.1.1.20240717140505510.7000.41203": "Legeinntegning ønh",
-        self.imported_examination_names = case_parameters.get("ExaminationNames")
+        self.imported_examination_names = self.case_parameters.get("ExaminationNames")
 
         # we set the current case either to the newest one or to the one that the user wanted to copy to
         if self.copy_to_case:
@@ -134,13 +143,13 @@ class Set:
         else:
             # Changing name to documentation, because the original case should be the one to change
             copied_cases = [c.CaseName for c in self.patient.Cases if "Kopiert Case" in c.CaseName]
-
+            # sorting the copied case names based on the number (Kopiert Case #)
+            copied_cases_sorted = sorted(copied_cases,key=lambda c:int(c[-1]))
             # If the patient has copied cases
-            # TODO: Bruk regex her?
             if len(copied_cases) > 0:
                 # copied_cases[-1] gir den siste kopierte casen. [-1] gir tallet i kopiert case x.
                 case.CaseName = "Kopiert Case {}".format(
-                    int(copied_cases[-1][-1]) + 1)
+                    int(copied_cases_sorted[-1][-1]) + 1)
             else:
                 case.CaseName = "Kopiert Case 1"
 
@@ -306,10 +315,15 @@ class Set:
                 # Does not work if there are multiple beamsets
                 # Changing name of isocenter if the doses are not considered clinical
                 # NB. Removing consider imported dose as clinical check is not scriptable
-                if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical:
-                    for beam in plan.BeamSets[0].Beams:
-                        beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]
-
+                # handelling both RS2023B and 2024B
+                try:
+                    if not plan.TreatmentCourse.TotalDose.DoseValues.IsAccurate:#IsClinical: 
+                        for beam in plan.BeamSets[0].Beams:
+                            beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]
+                except:
+                    if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical: 
+                        for beam in plan.BeamSets[0].Beams:
+                            beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]   
             # print("Plan filename")
             # print(plan_filename)
 
@@ -344,7 +358,11 @@ class Set:
                 prog = round(((k + 1) / len(clinical_goals)) * 100, 0)
                 self.Progress.update_progress(prog)
                 # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
-                RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
+                # handeling RS2023B and RS2024B
+                try:
+                    RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
+                except:
+                    RoiName, Goalriteria, GoalType, PrimaryAcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
                 try:
                     eval_setup.AddClinicalGoal(RoiName=RoiName,
                                                GoalCriteria=Goalriteria,

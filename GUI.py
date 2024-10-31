@@ -20,6 +20,7 @@ class mainGUI:
         self.derived_rois_var = tk.BooleanVar()
         self.export_var = tk.BooleanVar()
         self.import_var = tk.BooleanVar()
+        self.import_new_patient = tk.BooleanVar()
         self.set_parameters_var = tk.BooleanVar()
         self.delete_files = tk.BooleanVar()
         self.copy_to_case = None
@@ -28,6 +29,7 @@ class mainGUI:
                              self.derived_rois_var,
                              self.export_var,
                              self.import_var,
+                             self.import_new_patient,
                              self.set_parameters_var,
                              self.delete_files,
                              self.copy_to_case
@@ -50,21 +52,33 @@ class mainGUI:
         f0 = tk.Frame(self.root)
         f0.grid(row=4, column=0, sticky="w")
         tk.Checkbutton(f0, text="Hent Case parametere (cli. goals, opt. objectives etc.)",
-                       variable=self.get_parameters_var).grid(row=0, column=0, sticky="w")
+                       variable=self.get_parameters_var).grid(row=0, column=0, sticky="w", padx=(5, 0))
+        
         tk.Checkbutton(f0, text="-Hent regler for utledede ROIer (eksperimentelt)",
-                       variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=1, column=0, sticky="nw", padx=(50, 0))
+                       variable=self.derived_rois_var, command=self.get_parameters_subcheck).grid(row=1, column=0, sticky="nw", 
+                                                                                                  padx=(50, 0))
 
         tk.Checkbutton(self.root, text="Eksporter alle studier, planer og doser", variable=self.export_var,
-                       command=self.handle_export_but_no_get_parameters).grid(row=6, column=0, sticky="w")
+                       command=self.handle_export_but_no_get_parameters).grid(row=6, column=0, sticky="w", padx=(5, 0))
+        
         tk.Checkbutton(self.root, text="Importer alle eksporterte filer", variable=self.import_var).grid(row=7,
                                                                                                              column=0,
-                                                                                                             sticky="w")
-        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=8,
-                                                                                                          column=0,
-                                                                                                          sticky="w")
+                                                                                                             sticky="w",
+                                                                                                             padx=(5, 0))
+        
+        tk.Checkbutton(self.root, text="Importer ny pasient", variable=self.import_new_patient).grid(row=8, 
+                                                                                               column=0,
+                                                                                               sticky="w", 
+                                                                                               padx=(50, 0))
 
-        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=9, column=0,
-                                                                                                    sticky="w")
+        tk.Checkbutton(self.root, text="Sett Case parametere", variable=self.set_parameters_var).grid(row=9,
+                                                                                                          column=0,
+                                                                                                          sticky="w", 
+                                                                                                          padx=(5, 0))
+
+        tk.Checkbutton(self.root, text="Slett midlertidige filer", variable=self.delete_files).grid(row=10, column=0,
+                                                                                                    sticky="w", padx=(5, 0))
+
         self._copy_to_case_widget()
 
         self._generate_okcancel_buttons()
@@ -85,7 +99,7 @@ class mainGUI:
 
     def _generate_okcancel_buttons(self):
         f3 = tk.Frame(self.root)
-        f3.grid(row=10, columnspan=2)
+        f3.grid(row=11, columnspan=2)
         ok = tk.Button(f3, text="OK", width=10, command=self.show_selected_options, font=("Helvetica", 10)).grid(row=0,
                                                                                                                  column=0,
                                                                                                                  padx=15)
@@ -100,10 +114,14 @@ class mainGUI:
             grid(row=1,column=0)
         self.scrollbar = tk.Scrollbar(f1)
         self.scrollbar.grid(row=2, column=0, sticky="w", padx=(105, 0))
-        current_case = get_current("Case")
-        print(current_case.CaseName)
         # we remove the currently active case, because we dont want to copy a case to itself
-        cases = [c.CaseName for c in self.patient.Cases if c.CaseName != current_case.CaseName]
+        # if patient is None, we have no patient loaded and there are no cases to display
+        if self.patient:
+            current_case = get_current("Case")
+            print(current_case.CaseName)
+            cases = [c.CaseName for c in self.patient.Cases if c.CaseName != current_case.CaseName]
+        else:
+            cases = []
         # if there is only one case, then the width will be set to 5
         w = max([len(c) for c in cases]) if len(cases) > 0 else 5
         self.case_listbox = tk.Listbox(f1, yscrollcommand=self.scrollbar.set, width=w + 3,
@@ -158,6 +176,7 @@ class mainGUI:
                              self.derived_rois_var.get(),
                              self.export_var.get(),
                              self.import_var.get(),
+                             self.import_new_patient.get(),
                              self.set_parameters_var.get(),
                              self.delete_files.get(),
                              self.copy_to_case

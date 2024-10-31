@@ -20,14 +20,21 @@ from utils import save_derived_roi_expressions, save_derived_roi_status
 
 
 class Get:
-    def __init__(self, initials, destination, patient, case, export_files=True, get_derived_rois=True):
+    def __init__(self, destination, export_files=True, get_derived_rois=True):
         # TODO: Få denne til å funke som class og legg til alle case parameter til case_parameters
-        self.initials = initials
         self.destination = destination
-        self.patient = patient
-        self.case = case
         self.export_files = export_files
         self.get_derived_rois = get_derived_rois
+
+        try:
+            self.patient = get_current("Patient")
+        except SystemError:
+            raise IOError("No patient loaded.")
+        try:
+            self.case = get_current("Case")
+        except SystemError:
+            raise IOError("No case loaded.")
+
 
         self.get_parameters_and_export()
 
@@ -45,9 +52,14 @@ class Get:
 
         """Main function to gather parameters and export data."""
         self.case_parameters = {}
+        self.case_parameters["PatientID"] = self.patient.PatientID
+        self.case_parameters["Name"] = self.patient.Name
+        #self.case_parameters["Initials"] = self._get_patient_initials()
+
+
         self.error = []
 
-
+        self._get_patient_initials()
         self._include_all_rois_for_export()
         self._get_dose_color_map()
         self._get_examination_names()
@@ -61,6 +73,17 @@ class Get:
         
 
         return
+
+    def _get_patient_initials(self):
+        patient_name = self.patient.Name.split("^")
+
+        #Initials used in filenames
+        initials = ""
+        for name in patient_name:
+            # some names have more ^^ after the name which needs to be accounted for
+            initials += name[0] if len(name) > 0 else ""
+
+        return initials
 
     def _include_all_rois_for_export(self):
         # Including all ROIs for export and extracting derived roi expression
@@ -77,10 +100,6 @@ class Get:
         ColorTable_serialized = {rel_dose: (color.A, color.R, color.G, color.B) for rel_dose, color in
                                  ColorTable.items()}
 
-        """# Saving colortable
-        with open(os.path.join(self.destination, '{}_ColorTable.json'.format(self.initials)), 'w') as f:
-            json.dump(ColorTable_serialized, f)"""
-
     def _get_examination_names(self):
         # Get name examinations
         self.case_parameters["ExaminationNames"] = {
@@ -90,17 +109,11 @@ class Get:
                              in
                              range(len(self.case.Examinations))}
 
-        # Saving CT study names
-        """with open(os.path.join(self.destination, '{}_StudyNames.json'.format(self.initials)), 'w') as f:
-            json.dump(examination_names, f)"""
-
     def _extract_derived_roi_expressions(self):
         self.derived_rois = [roi.Name for roi in self.case.PatientModel.RegionsOfInterest if roi.DerivedRoiExpression]
         self.derived_rois_dict = save_derived_roi_expressions(self.case, self.derived_rois)
         self.case_parameters["derived rois dict"] = self.derived_rois_dict
         # saving derived roi expressions and derived roi geometry statuses
-        """with open(os.path.join(self.destination, '{}_derived_roi_dict.json'.format(self.initials)), 'w') as f:
-            json.dump(self.derived_rois_dict, f)"""
 
     def _plans_w_beamset_and_beams(self):
         #print([p for p in self.case.TreatmentPlans if p.BeamSets and p.BeamSets[0].Beams])
@@ -229,25 +242,24 @@ class Get:
         for i, ef in enumerate(eval_functions):
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
             planning_goals = ef.PlanningGoal
-            clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
-                                       planning_goals.Type,
-                                       planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
-                                       planning_goals.Priority]
+            # handeling RS2023B and RS2024B
+            try:
+                clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
+                                        planning_goals.Type,
+                                        planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
+                                        planning_goals.Priority]
+            except:
+                clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
+                                        planning_goals.Type,
+                                        planning_goals.PrimaryAcceptanceLevel, planning_goals.ParameterValue,
+                                        planning_goals.Priority]
 
         # TODO: fullfør stor json fil
 
         self.case_parameters["ClinicalGoals"][plan.Name] = clinical_goals[plan.Name]
-        """with open(os.path.join(self.destination,
-                               '{}_{}_ClinicalGoals.json'.format(self.initials, plan.Name.replace("/", "Y"))),
-                  'w') as f:
-            json.dump(clinical_goals[plan], f)"""
-
+        
         # Saving objectives
         self.case_parameters["Objectives"][plan.Name] = arguments
-        """with open(os.path.join(self.destination,
-                               '{}_{}_objectives.json'.format(self.initials, plan.Name.replace("/", "Y"))),
-                  'w') as f:
-            json.dump(arguments, f)"""
 
     def _extract_derived_roi_statuses(self, examination, structureset):
 
