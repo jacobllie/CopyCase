@@ -188,13 +188,19 @@ class Get:
                     dose_computed = True
 
                 else:
-                    # Dose does not exist and needs to be recalculated
-                    plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose",
-                                                 ForceRecompute=False,
-                                                 RunEntryValidation=True)
+                    try:
+                        # Dose does not exist and needs to be recalculated
+                        plan.BeamSets[0].ComputeDose(ComputeBeamDoses=True, DoseAlgorithm="CCDose",
+                                                    ForceRecompute=False,
+                                                    RunEntryValidation=True)
+                    except:
+                        print("Raystation 2024B")
+                        # Dose does not exist and needs to be recalculated
+                        plan.BeamSets[0].ComputeDose()
                     plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
                     dose_computed = True
-            except:
+            except Exception as e:
+                print(e)
                 try:
                     print("No doses")
                     # Dose does not exist and needs to be recalculated
@@ -203,7 +209,8 @@ class Get:
                                                  RunEntryValidation=True)
                     plan.BeamSets[0].FractionDose.UpdateDoseGridStructures()
                     dose_computed = True
-                except:
+                except Exception as e:
+                    print(e)
                     # Dose could not be recomputed, skip plan
                     print("Could not recompute dose")
                     dose_computed = False
@@ -249,6 +256,7 @@ class Get:
                                         planning_goals.AcceptanceLevel, planning_goals.ParameterValue,
                                         planning_goals.Priority]
             except:
+                print("Raystation 2024B")
                 clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
                                         planning_goals.Type,
                                         planning_goals.PrimaryAcceptanceLevel, planning_goals.ParameterValue,

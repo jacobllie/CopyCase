@@ -111,8 +111,12 @@ class Set:
                 Instead, we retrieve the date and time for the case that was last modified and update it.
                 """
         patient_db = get_current("PatientDB")
+        
+        """r"{}$" uses python string format(). We use a regex string to narrow the search in case of multiple patients 
+        with same name and id (but with suffix). $ tells us that the string stops after the patient's last name,
+        so in case of suffixes (e.g. test patient_1) these are not included in the search""" 
         patient_info = patient_db.QueryPatientInfo(
-            Filter={"PatientID": self.patient.PatientID, "LastName": self.patient.Name.split("^")[0]})
+            Filter={"PatientID": self.patient.PatientID, "LastName": r"{}$".format(self.patient.Name.split("^")[0])})
 
         assert len(patient_info) > 0, "Patient info is empty"
 
@@ -202,7 +206,7 @@ class Set:
                 ex.Name = new_name + " 1"
             else:
                 ex.Name = new_name
-        # if lung is in protocolname we might have a 4DCT
+        # if lung is in protocolname we might have a 4DCT, only works for non anonymized patients
         if any(("lunge" in e.GetProtocolName().lower() for e in self.case.Examinations if e.GetProtocolName())):
             self._handle_lung_examinations()
 
@@ -264,7 +268,8 @@ class Set:
                 self.case.CreateExaminationGroup(ExaminationGroupName="4DCT",
                                             ExaminationGroupType="Collection4dct",
                                             ExaminationNames=fourDCT)
-        except:
+        except Exception as e:
+            print(e)
             # TODO: errormessage
             pass
 
@@ -289,9 +294,6 @@ class Set:
                 continue
             else:
                 self.Progress.update_plan("Plan {}/{}".format(i + 1, len(self.case.TreatmentPlans)))
-
-            # need this to extract correct objectives and clinical goals
-            original_plan_name = plan.Name
 
             # If plan has copy in
             if plan.Review:
@@ -321,17 +323,23 @@ class Set:
                         for beam in plan.BeamSets[0].Beams:
                             beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]
                 except:
+                    print("Raystation 2024B")
                     if not plan.TreatmentCourse.TotalDose.DoseValues.IsClinical: 
                         for beam in plan.BeamSets[0].Beams:
                             beam.Isocenter.Annotation.Name = self.isocenter_names[plan.Name]   
             # print("Plan filename")
             # print(plan_filename)
 
+            # need this to extract correct objectives and clinical goals
+            plan_name = plan.Name
+
+
+
             PlanOptimization_new = plan.PlanOptimizations[0]
 
             self.Progress.update_operation("Legger til Optimization Objectives")
 
-            objectives = self.objectives[original_plan_name]
+            objectives = self.objectives[plan_name]
             # Adding optimization functions from the original plan for each ROI
             for j, arg_dict in enumerate(objectives):
                 prog = round(((j + 1) / len(objectives)) * 100, 0)
@@ -346,14 +354,15 @@ class Set:
                                                                          )
                         set_function_arguments(f, arg_dict)
 
-                    except:
+                    except Exception as e:
+                        print(e)
                         print("Could not set objective for ROI {} ".format(arg_dict["RoiName"]))
 
             self.Progress.update_operation("Legger til Clinical Goals")
 
             eval_setup = plan.TreatmentCourse.EvaluationSetup
 
-            clinical_goals = self.clinical_goals[original_plan_name]
+            clinical_goals = self.clinical_goals[plan_name]
             for k, goal in enumerate(clinical_goals):
                 prog = round(((k + 1) / len(clinical_goals)) * 100, 0)
                 self.Progress.update_progress(prog)
@@ -371,12 +380,14 @@ class Set:
                                                ParameterValue=ParameterValue,
                                                Priority=Priority
                                                )
-                except:
+                except Exception as e:
+                    print(e)
                     pass
 
             try:
                 plan.PlanOptimizations[0].EvaluateOptimizationFunctions()
-            except:
+            except Exception as e:
+                print(e)
                 print("Could not compute objective functions")
 
         # Quitting progresswindow
