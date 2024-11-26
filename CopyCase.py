@@ -16,9 +16,6 @@ from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
 from dicom_import import Import, Import_new_patient
 
 
-# TODO: Ta hensyn til om det eksisterer en plan i caset som det skal kopieres til
-#  og eventuelt om det finnes en låst plan med et låst struktursett
-
 def copycase():
     """
     copycase extracts case parameters such as clinical goals, optimization objectives, derived roi expressions and dose colors.
