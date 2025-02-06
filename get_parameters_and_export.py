@@ -249,7 +249,7 @@ class Get:
         for i, ef in enumerate(eval_functions):
             # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
             planning_goals = ef.PlanningGoal
-            # handeling RS2023B and RS2024B
+
             try:
                 clinical_goals[plan.Name][i] = [ef.ForRegionOfInterest.Name, planning_goals.GoalCriteria,
                                         planning_goals.Type,
@@ -262,10 +262,10 @@ class Get:
                                         planning_goals.PrimaryAcceptanceLevel, planning_goals.ParameterValue,
                                         planning_goals.Priority]
 
+
         # TODO: fullfør stor json fil
 
         self.case_parameters["ClinicalGoals"][plan.Name] = clinical_goals[plan.Name]
-        
         # Saving objectives
         self.case_parameters["Objectives"][plan.Name] = arguments
 
@@ -331,7 +331,7 @@ class Get:
                 # Changing name of beamset to be compatible with the ScriptableDicomExport function
                 if self.export_files:
                     plan.BeamSets[0].DicomPlanLabel = plan.BeamSets[0].DicomPlanLabel.replace(":", "X")
-                    plan.Name = plan.Name.replace(":", "X").replace("/", "Y")
+                    plan.Name = plan.Name.replace(":", "X")   #.replace("/", "Y")
                     self.beamsets.append("%s:%s" % (plan.Name, plan.BeamSets[0].DicomPlanLabel))
                     self.exported_plans.append(plan)
                     self.patient.Save()
