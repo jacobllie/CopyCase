@@ -296,6 +296,9 @@ class Set:
             else:
                 self.Progress.update_plan("Plan {}/{}".format(i + 1, len(self.case.TreatmentPlans)))
 
+            # need this to extract correct objectives and clinical goals
+            plan_name = plan.Name
+
             # If plan has copy in
             if plan.Review:
                 if plan.Review.ApprovalStatus == "Approved":
@@ -332,9 +335,6 @@ class Set:
             # print("Plan filename")
             # print(plan_filename)
 
-            # need this to extract correct objectives and clinical goals
-            plan_name = plan.Name
-
 
 
             PlanOptimization_new = plan.PlanOptimizations[0]
@@ -370,14 +370,12 @@ class Set:
                 self.Progress.update_progress(prog)
                 # Clinical goal settings  RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority
 
-                # handeling RS2023B and RS2024B
-                try:
-                    RoiName, Goalriteria, GoalType, AcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
-                except:
-                    RoiName, Goalriteria, GoalType, PrimaryAcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
+        
+                RoiName, GoalCriteria, GoalType, PrimaryAcceptanceLevel, ParameterValue, Priority = clinical_goals[goal]
+                
                 try:
                     eval_setup.AddClinicalGoal(RoiName=RoiName,
-                                               GoalCriteria=Goalriteria,
+                                               GoalCriteria=GoalCriteria,
                                                GoalType=GoalType,
                                                PrimaryAcceptanceLevel=PrimaryAcceptanceLevel,
                                                ParameterValue=ParameterValue,
