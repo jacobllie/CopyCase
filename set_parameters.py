@@ -9,13 +9,8 @@ import clr
 # whatever that
 clr.AddReference("System.Drawing")
 from System.Drawing import Color
-import datetime
 import tkinter as tk
-from tkinter import ttk
-import threading
-
 # Importing local files:
-from dicom_import import Import
 from get_and_set_arguments_from_function import set_function_arguments
 from GUI import ProgressBar, ConfirmCase, INFOBOX, ScrollBar
 from utils import generate_roi_algebra

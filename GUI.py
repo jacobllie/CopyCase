@@ -2,10 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 import sys
-import time
 from tkinter import messagebox
 import os
-import threading
 from typing import List
 from connect import *
 

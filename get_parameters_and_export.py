@@ -4,18 +4,13 @@
 from connect import *
 
 #import python modules
-import json
-import os
 import sys
-import time
 import connect
-import tkinter as tk
 import glob
 
 #import local files
 from get_and_set_arguments_from_function import get_arguments_from_function, set_function_arguments
 from dicom_export import Export
-from GUI import INFOBOX
 from utils import save_derived_roi_expressions, save_derived_roi_status
 
 

@@ -11,7 +11,7 @@ from tkinter import messagebox
 # Import local files:
 from get_parameters_and_export import Get
 from set_parameters import Set
-from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
+from GUI import mainGUI, INFOBOX, ProgressBar
 from dicom_import import Import, Import_new_patient
 from utils import delete_files_and_folders
 
@@ -136,8 +136,6 @@ def copycase():
 
     if error != [] and error != None:
         msg = tk.Tk()
-        #options = error.split("\n")
-        #app = ScrollBar(msg, "Error/Warning", error)
         app = INFOBOX(msg, "Error/Warning", error)
         msg.protocol("WM_DELETE_WINDOW", root.destroy)
         msg.mainloop()

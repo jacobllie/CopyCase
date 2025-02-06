@@ -2,11 +2,8 @@
 #The script exports files from a patient.
 from connect import *
 import json
-import System
 import sys
-import tkinter as tk
 
-from GUI import INFOBOX
 
 # Example on how to read the JSON error string.
 def LogWarning(error):
