@@ -67,6 +67,7 @@ def Export(destination, case, beamsets):
     errormessage = []
     to_examinations = []
     from_examinations = []
+    spatial_reg_for_exams = None
     try:
         for i, registration in enumerate([r for r in case.Registrations]):
             # Skipping invalid registrations which are not applicable for scriptabledicomexport
