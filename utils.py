@@ -1,6 +1,6 @@
 import connect
 import sys
-
+import os
 def save_derived_roi_expressions(case, derived_rois):
 
     def loop_derived_roi_expression(children, operation):
@@ -307,3 +307,25 @@ def generate_roi_algebra(case, derived_roi_expression, derived_roi_status, plann
                     error.extend(["\n{}".format(roi.Name)])
     return error
 
+
+
+def delete_files_and_folders(destination):
+  """
+  Function that deletes files and folder in destination folder path
+  :param destination: str
+  :return: None
+  """
+  if os.path.isdir(destination):
+    for file in os.listdir(destination):
+      p = os.path.join(destination, file)
+      if os.path.isdir(p):
+        delete_files_and_folders(p)
+      else:
+        try:
+          os.remove(p)
+        except:
+          print("Could not remove file {}".format(p))
+    try:
+      os.rmdir(destination)
+    except:
+      print ("Could not remove directory {}".format(destination))

@@ -9,11 +9,11 @@ import tkinter as tk
 from tkinter import messagebox
 
 # Import local files:
-from delete_files_and_folders import delete_files_and_folders
 from get_parameters_and_export import Get
 from set_parameters import Set
 from GUI import mainGUI, INFOBOX, ProgressBar, ScrollBar
 from dicom_import import Import, Import_new_patient
+from utils import delete_files_and_folders
 
 
 # TODO: Ta hensyn til om det eksisterer en plan i caset som det skal kopieres til
